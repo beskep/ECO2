@@ -27,7 +27,7 @@ def decrypt(eco, savedir, header, value):
     \b
     eco 파일을 해석해서 header와 value 파일로 나눠 저장.
         header: eco의 버전, 생성 날짜 등 정보를 담은 바이너리 파일.
-        value: 해석 설정 정보를 담은 xml 파일.
+        value : 해석 설정 정보를 담은 xml 파일.
 
     \b
     Argument:
@@ -45,7 +45,7 @@ def decrypt(eco, savedir, header, value):
 @click.option('-s',
               '--savedir',
               help=('해석한 header와 value 파일의 저장 경로. '
-                    '미설정 시 eco 파일과 동일 경로에 저장.'))
+                    '미설정 시 value 파일과 동일 경로에 저장.'))
 def encrypt(header, value, savedir):
     """
     header와 value를 암호화해서 eco 파일로 변환
