@@ -1,6 +1,6 @@
 import click
 
-from eco2 import Eco2
+from ECO2.eco2 import Eco2
 
 
 @click.group()

@@ -1,6 +1,5 @@
 from itertools import cycle
 from pathlib import Path
-from typing import Union
 
 
 class Eco2:
@@ -15,7 +14,8 @@ class Eco2:
         (8, 'unknown'),
     )
     key = (172, 41, 85, 66)
-    encoding = 'UTF-8'
+    header_encoding = 'EUC-KR'
+    value_encoding = 'UTF-8'
     value_ext = '.xml'
 
     @classmethod
@@ -43,33 +43,15 @@ class Eco2:
         b = data
         for length, name in cls.header:
             value, b = cls._decode_chunk(b=b, length=length)
+
             try:
-                value = value.decode('euc-kr')
+                value = value.decode(cls.header_encoding)
             except ValueError:
                 pass
 
             header[name] = value
 
         return header
-
-    @classmethod
-    def _decrypt_eco2_data(cls, data: bytes):
-        decrypted = cls.decrypt_bytes(data)
-        hl = cls.header_length()
-
-        header_bytes = decrypted[:hl]
-        value_bytes = decrypted[hl:]
-        value = value_bytes.decode()
-
-        return header_bytes, value
-
-    @classmethod
-    def _write_value(cls, path: Path, value: str):
-        path.write_text(value.replace('\r\n', '\n'), encoding=cls.encoding)
-
-    @classmethod
-    def _read_value(cls, path: Path):
-        return path.read_text(encoding=cls.encoding).replace('\n', '\r\n')
 
     @classmethod
     def _print_header_info(cls, header: bytes):
@@ -84,11 +66,27 @@ class Eco2:
             print(f'    {key:10s}: {value}')
 
     @classmethod
-    def decrypt(cls,
-                path: Union[str, Path],
-                save_dir=None,
-                header_name=None,
-                value_name=None):
+    def _write_value(cls, path: Path, value: str):
+        path.write_text(value.replace('\r\n', '\n'),
+                        encoding=cls.value_encoding)
+
+    @classmethod
+    def _read_value(cls, path: Path):
+        return path.read_text(encoding=cls.value_encoding).replace('\n', '\r\n')
+
+    @classmethod
+    def _decrypt_eco2_data(cls, data: bytes):
+        decrypted = cls.decrypt_bytes(data)
+        hl = cls.header_length()
+
+        header_bytes = decrypted[:hl]
+        value_bytes = decrypted[hl:]
+        value = value_bytes.decode()
+
+        return header_bytes, value
+
+    @classmethod
+    def decrypt(cls, path, save_dir=None, header_name=None, value_name=None):
         path = Path(path)
         save_dir = path.parent if save_dir is None else Path(save_dir)
         if not save_dir.exists():
@@ -111,6 +109,13 @@ class Eco2:
         cls._write_value(path=value_path, value=value)
 
     @classmethod
+    def _encrypt(cls, header: bytes, value_path: str, save_path: Path):
+        value = cls._read_value(path=value_path)
+        bvalue = value.encode(cls.value_encoding)
+        encrypted = cls.encrypt_bytes(header + bvalue)
+        save_path.write_bytes(encrypted)
+
+    @classmethod
     def encrypt(cls, header_path, value_path, save_path=None):
         if save_path is None:
             save_path = 'output.eco'
@@ -119,21 +124,18 @@ class Eco2:
         value_path = Path(value_path)
         save_path = Path(save_path)
 
-        bheader = header_path.read_bytes()
-        cls._print_header_info(bheader)
+        header = header_path.read_bytes()
+        cls._print_header_info(header)
 
-        value = cls._read_value(path=value_path)
-        bvalue = value.encode()
-
-        data = bheader + bvalue
-        encrypted = cls.encrypt_bytes(data)
-
-        save_path.write_bytes(encrypted)
+        cls._encrypt(header=header, value_path=value_path, save_path=save_path)
 
     @classmethod
     def encrypt_dir(cls, header_path, value_path, save_dir=None):
         header_path = Path(header_path)
         value_path = Path(value_path)
+
+        header = header_path.read_bytes()
+        cls._print_header_info(header)
 
         save_dir = value_path if save_dir is None else Path(save_dir)
         if not save_dir.is_dir():
@@ -145,6 +147,6 @@ class Eco2:
             vps = [value_path]
 
         for vp in vps:
-            cls.encrypt(header_path=header_path,
-                        value_path=vp,
-                        save_path=save_dir.joinpath(f'{vp.stem}.eco'))
+            cls._encrypt(header=header,
+                         value_path=vp,
+                         save_path=save_dir.joinpath(f'{vp.stem}.eco'))
