@@ -1,11 +1,14 @@
 [tool.yapf]
-BASED_ON_STYLE = 'google'
+based_on_style = 'google'
 
 [tool.yapfignore]
 ignore_patterns = ['build/']
 
 [tool.isort]
 profile = 'google'
+
+[tool.pylint.MASTER]
+load-plugins = ['pylint.extensions.mccabe', 'pylint.extensions.docparams']
 
 [tool.pylint.messages_control]
 enable = [
@@ -22,12 +25,15 @@ enable = [
 ]
 disable = [
     'bad-indentation',
+    'c-extension-no-member',
     'fixme',
     'import-error',
     'invalid-name',
     'missing-class-docstring',
     'missing-function-docstring',
     'missing-module-docstring',
+    'missing-raises-doc',
+    'missing-return-doc',
     'protected-access',
     'redefined-outer-name',
     'superfluous-parens',
@@ -40,7 +46,3 @@ disable = [
 
 [tool.mypy]
 disable_error_code = ['var-annotated', 'import']
-
-[tool.pyright]
-include = ['src']
-ignore = ['**/__init__.py']

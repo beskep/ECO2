@@ -36,4 +36,4 @@ def test_eco2():
 
 
 if __name__ == '__main__':
-    pytest.main(['-vv'])
+    pytest.main(['-v'])

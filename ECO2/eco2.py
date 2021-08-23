@@ -5,13 +5,13 @@ from typing import Union
 
 class Eco2:
     header = (
-        (2, 'SF_type'),
-        (10, 'UI_version'),
-        (10, 'LG_version'),
-        (100, 'name'),
-        (256, 'desc'),
-        (19, 'make_time'),
-        (19, 'edit_time'),
+        (2, 'SF type'),
+        (10, 'UI version'),
+        (10, 'LG version'),
+        (100, 'Name'),
+        (256, 'Desc'),
+        (19, 'Make time'),
+        (19, 'Edit time'),
         (8, 'unknown'),
     )
     key = (172, 41, 85, 66)
@@ -43,6 +43,11 @@ class Eco2:
         b = data
         for length, name in cls.header:
             value, b = cls._decode_chunk(b=b, length=length)
+            try:
+                value = value.decode('euc-kr')
+            except ValueError:
+                pass
+
             header[name] = value
 
         return header
@@ -67,6 +72,18 @@ class Eco2:
         return path.read_text(encoding=cls.encoding).replace('\n', '\r\n')
 
     @classmethod
+    def _print_header_info(cls, header: bytes):
+        header_dict = cls._decode_header(header)
+
+        print('Header info:')
+
+        for key, value in header_dict.items():
+            if key == 'unknown':
+                continue
+
+            print(f'    {key:10s}: {value}')
+
+    @classmethod
     def decrypt(cls,
                 path: Union[str, Path],
                 save_dir=None,
@@ -85,6 +102,8 @@ class Eco2:
         data = path.read_bytes()
         bheader, value = cls._decrypt_eco2_data(data)
 
+        cls._print_header_info(bheader)
+
         header_path = save_dir.joinpath(header_name)
         header_path.write_bytes(bheader)
 
@@ -101,6 +120,7 @@ class Eco2:
         save_path = Path(save_path)
 
         bheader = header_path.read_bytes()
+        cls._print_header_info(bheader)
 
         value = cls._read_value(path=value_path)
         bvalue = value.encode()
