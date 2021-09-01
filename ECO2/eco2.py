@@ -1,6 +1,8 @@
 from itertools import cycle
 from pathlib import Path
 
+from loguru import logger
+
 
 class Eco2:
     header = (
@@ -11,12 +13,14 @@ class Eco2:
         (256, 'Desc'),
         (19, 'Make time'),
         (19, 'Edit time'),
-        (8, 'unknown'),
+        (8, 'password'),
     )
     key = (172, 41, 85, 66)
     header_encoding = 'EUC-KR'
     value_encoding = 'UTF-8'
+    header_ext = '.header'
     value_ext = '.xml'
+    ds = '</DS>'
 
     @classmethod
     def decrypt_bytes(cls, data: bytes):
@@ -57,13 +61,11 @@ class Eco2:
     def _print_header_info(cls, header: bytes):
         header_dict = cls._decode_header(header)
 
-        print('Header info:')
-
         for key, value in header_dict.items():
-            if key == 'unknown':
+            if key == 'password':
                 continue
 
-            print(f'    {key:10s}: {value}')
+            logger.info('[HEADER] {:10s}: {}', key, value)
 
     @classmethod
     def _write_value(cls, path: Path, value: str):
@@ -75,78 +77,82 @@ class Eco2:
         return path.read_text(encoding=cls.value_encoding).replace('\n', '\r\n')
 
     @classmethod
-    def _decrypt_eco2_data(cls, data: bytes):
-        decrypted = cls.decrypt_bytes(data)
-        hl = cls.header_length()
+    def _decrypt(cls, data: bytes, decrypt: bool):
+        if decrypt:
+            data = cls.decrypt_bytes(data)
 
-        header_bytes = decrypted[:hl]
-        value_bytes = decrypted[hl:]
-        value = value_bytes.decode()
+        hl = cls.header_length()
+        header_bytes = data[:hl]
+        value_bytes = data[hl:]
+
+        try:
+            value = value_bytes.decode(cls.value_encoding)
+        except ValueError:
+            # 케이스 설정 부분 (<DS>...</DS>)만 추출하고
+            # 결과부 (<DSR>...</DSR>)은 버림
+            logger.debug('ECO2 파일의 결과부 (DSR)를 제외합니다.')
+            value = value_bytes.decode(cls.value_encoding, 'replace')
+
+            if cls.ds not in value:
+                raise ValueError('인코딩 에러')
+
+            value = value[:(value.find(cls.ds) + len(cls.ds))]
 
         return header_bytes, value
 
     @classmethod
-    def decrypt(cls, path, save_dir=None, header_name=None, value_name=None):
+    def decrypt(cls, path, header_path=None, value_path=None):
         path = Path(path)
-        save_dir = path.parent if save_dir is None else Path(save_dir)
-        if not save_dir.exists():
-            raise FileNotFoundError(save_dir)
 
-        if header_name is None:
-            header_name = 'header'
-        if value_name is None:
-            value_name = path.stem
+        if header_path is None:
+            header_path = path.with_suffix(cls.header_ext)
+        else:
+            header_path = Path(header_path)
+
+        if value_path is None:
+            value_path = path.with_suffix(cls.value_ext)
+        else:
+            value_path = Path(value_path)
+
+        logger.info('Input: {}', path)
+        logger.debug('Header: {}', header_path)
+        logger.debug('Value: {}', value_path)
 
         data = path.read_bytes()
-        bheader, value = cls._decrypt_eco2_data(data)
+        decrypt = (path.suffix == '.eco')
+        try:
+            header, value = cls._decrypt(data=data, decrypt=decrypt)
+        except ValueError:
+            header, value = cls._decrypt(data=data, decrypt=(not decrypt))
 
-        cls._print_header_info(bheader)
+        cls._print_header_info(header)
 
-        header_path = save_dir.joinpath(header_name)
-        header_path.write_bytes(bheader)
-
-        value_path = save_dir.joinpath(value_name + cls.value_ext)
+        header_path.write_bytes(header)
         cls._write_value(path=value_path, value=value)
 
     @classmethod
-    def _encrypt(cls, header: bytes, value_path: str, save_path: Path):
-        value = cls._read_value(path=value_path)
-        bvalue = value.encode(cls.value_encoding)
-        encrypted = cls.encrypt_bytes(header + bvalue)
+    def _encrypt(cls, header: bytes, value: bytes, save_path: Path):
+        encrypted = cls.encrypt_bytes(header + value)
         save_path.write_bytes(encrypted)
 
     @classmethod
     def encrypt(cls, header_path, value_path, save_path=None):
-        if save_path is None:
-            save_path = 'output.eco'
-
-        header_path = Path(header_path)
-        value_path = Path(value_path)
-        save_path = Path(save_path)
-
-        header = header_path.read_bytes()
-        cls._print_header_info(header)
-
-        cls._encrypt(header=header, value_path=value_path, save_path=save_path)
-
-    @classmethod
-    def encrypt_dir(cls, header_path, value_path, save_dir=None):
         header_path = Path(header_path)
         value_path = Path(value_path)
 
-        header = header_path.read_bytes()
-        cls._print_header_info(header)
-
-        save_dir = value_path if save_dir is None else Path(save_dir)
-        if not save_dir.is_dir():
-            save_dir = save_dir.parent
-
-        if value_path.is_dir():
-            vps = value_path.glob(f'*{cls.value_ext}')
+        if save_path:
+            save_path = Path(save_path)
         else:
-            vps = [value_path]
+            save_path = value_path.with_suffix('.eco')
 
-        for vp in vps:
-            cls._encrypt(header=header,
-                         value_path=vp,
-                         save_path=save_dir.joinpath(f'{vp.stem}.eco'))
+        logger.info('Value: {}', value_path)
+        logger.info('Header: {}', header_path)
+        logger.debug('Output: {}', save_path)
+
+        header = header_path.read_bytes()
+        cls._print_header_info(header)
+
+        value = cls._read_value(path=value_path)
+        value_bytes = value.encode(cls.value_encoding)
+
+        cls._encrypt(header=header, value=value_bytes, save_path=save_path)

@@ -4,11 +4,8 @@ from cx_Freeze import setup
 if __name__ == '__main__':
     options = {
         'build_exe': {
-            'optimize':
-                1,
-            'excludes': [
-                'email', 'html', 'http', 'logging', 'tkinter', 'unittest'
-            ]
+            'optimize': 1,
+            'excludes': ['email', 'html', 'http', 'tkinter', 'unittest']
         }
     }
 

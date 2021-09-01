@@ -1,90 +1,117 @@
 from pathlib import Path
+from shutil import copy2
 
+from click.testing import CliRunner
 import pytest
 
 from ECO2.cli import cli
 from ECO2.eco2 import Eco2
 
 data_dir = Path(__file__).parent.joinpath('data')
-eco2_path = data_dir.joinpath('test.eco')
-header_path = data_dir.joinpath('header')
-value_path = data_dir.joinpath('value.xml')
+files = ['eco_test.eco', 'tpl_test.tpl']
 
 
-def test_eco2():
-    encrypted_path = data_dir.joinpath('encrypted.eco')
+@pytest.mark.parametrize('file', files)
+def test_eco2(file, tmp_path: Path):
+    data_path = tmp_path.joinpath(file)
+    copy2(src=data_dir.joinpath(file), dst=data_path)
+
+    header_path = data_path.with_suffix(Eco2.header_ext)
+    value_path = data_path.with_suffix(Eco2.value_ext)
+    encrypted_path = tmp_path.joinpath(f'{data_path.stem}-encrypted.eco')
 
     header_path.unlink(missing_ok=True)
     value_path.unlink(missing_ok=True)
     encrypted_path.unlink(missing_ok=True)
 
-    Eco2.decrypt(path=eco2_path,
-                 save_dir=data_dir,
-                 header_name=header_path.stem,
-                 value_name=value_path.stem)
+    is_eco = data_path.suffix == '.eco'
 
-    header, value = Eco2._decrypt_eco2_data(eco2_path.read_bytes())
+    Eco2.decrypt(path=data_path)
+
+    header, value = Eco2._decrypt(data_path.read_bytes(), decrypt=is_eco)
     saved_header = header_path.read_bytes()
     saved_value = Eco2._read_value(value_path)
 
     assert header == saved_header
-    assert hash(value) == hash(saved_value)
+
+    if is_eco:
+        # tpl 파일의 경우 결과부 (<DSR>)이 제거되어 value가 달라질 수 있음
+        assert hash(value) == hash(saved_value)
 
     Eco2.encrypt(header_path=header_path,
                  value_path=value_path,
                  save_path=encrypted_path)
 
-    eco2 = eco2_path.read_bytes()
+    eco2 = data_path.read_bytes()
     encrypted = encrypted_path.read_bytes()
 
-    assert hash(eco2) == hash(encrypted)
+    if is_eco:
+        assert hash(eco2) == hash(encrypted)
 
     header_path.unlink(missing_ok=True)
     value_path.unlink(missing_ok=True)
     encrypted_path.unlink(missing_ok=True)
 
 
-def test_cli():
-    encrypted_path = value_path.with_suffix('.eco')
+@pytest.mark.parametrize('file', files)
+def test_cli_input_file(file, tmp_path: Path):
+    data_path = tmp_path.joinpath(file)
+    copy2(src=data_dir.joinpath(file), dst=tmp_path)
+
+    header_path = data_path.with_suffix(Eco2.header_ext)
+    value_path = data_path.with_suffix(Eco2.value_ext)
+    encrypted_path = tmp_path.joinpath(f'{data_path.stem}-encrypted.eco')
 
     header_path.unlink(missing_ok=True)
     value_path.unlink(missing_ok=True)
     encrypted_path.unlink(missing_ok=True)
 
-    try:
-        cli([
-            'decrypt',
-            eco2_path.as_posix(),
-            '-s',
-            eco2_path.parent.as_posix(),
-            '-h',
-            header_path.as_posix(),
-            '-v',
-            value_path.with_suffix('').as_posix(),
-        ])
-    except SystemExit:
-        pass
+    runner = CliRunner()
+    runner.invoke(cli, [
+        '-d',
+        'decrypt',
+        '--output',
+        value_path.as_posix(),
+        data_path.as_posix(),
+    ])
 
-    assert header_path.exists()
-    assert value_path.exists()
+    assert header_path.exists(), header_path
+    assert value_path.exists(), value_path
 
-    try:
-        cli([
-            'encrypt',
-            header_path.as_posix(),
-            value_path.parent.as_posix(),
-            '-s',
-            header_path.parent.as_posix(),
-        ])
-    except SystemExit:
-        pass
+    runner.invoke(cli, [
+        '-d',
+        'encrypt',
+        '--header',
+        header_path.as_posix(),
+        '--output',
+        encrypted_path.as_posix(),
+        value_path.as_posix(),
+    ])
 
-    assert encrypted_path.exists()
+    assert encrypted_path.exists(), encrypted_path
 
     header_path.unlink(missing_ok=True)
     value_path.unlink(missing_ok=True)
     encrypted_path.unlink(missing_ok=True)
+
+
+def test_cli_input_dir(tmp_path: Path):
+    for file in files:
+        copy2(src=data_dir.joinpath(file), dst=tmp_path)
+
+    runner = CliRunner()
+    runner.invoke(cli, ['--debug', 'decrypt', tmp_path.as_posix()])
+
+    for file in files:
+        data_path = tmp_path.joinpath(file)
+        data_path.unlink()
+        assert data_path.with_suffix(Eco2.header_ext).exists()
+        assert data_path.with_suffix(Eco2.value_ext).exists()
+
+    runner.invoke(cli, ['--debug', 'encrypt', tmp_path.as_posix()])
+    for file in files:
+        assert tmp_path.joinpath(file).with_suffix('.eco').exists()
 
 
 if __name__ == '__main__':
-    pytest.main(['-v'])
+    pytest.main(['-v', '-k', 'dir'])
