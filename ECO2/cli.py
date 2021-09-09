@@ -75,7 +75,7 @@ def decrypt(inputs: tuple, output):
 @click.option('-h',
               '--header',
               help=('header 파일 경로. 미지정 시 value 파일과 동일한 경로·이름에 '
-                    '확장자가 `.header`인 파일로 추정. INPUT이 폴더일 경우 무시됨.'))
+                    '확장자가 `.header`인 파일로 추정.'))
 @click.option('-o',
               '--output',
               help=('저장할 eco 파일의 경로. '
@@ -96,11 +96,11 @@ def encrypt(inputs: tuple, header, output):
     if len(paths) == 1:
         if paths[0].is_dir():
             paths = paths[0].glob(f'*{Eco2.value_ext}')
-        else:
-            if header:
-                header_path = Path(header)
-            if output:
-                output_path = Path(output)
+        elif output:
+            output_path = Path(output)
+
+    if header:
+        header_path = Path(header)
 
     for path in paths:
         hp = header_path if header_path else path.with_suffix(Eco2.header_ext)

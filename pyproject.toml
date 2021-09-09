@@ -37,6 +37,8 @@ disable = [
     'protected-access',
     'redefined-outer-name',
     'superfluous-parens',
+    'too-few-public-methods',
+    'too-many-arguments',
     'trailing-whitespace',
     'unused-argument',
     'unused-import',
@@ -46,3 +48,6 @@ disable = [
 
 [tool.mypy]
 disable_error_code = ['var-annotated', 'import']
+
+[tool.pytest.ini_options]
+addopts = '-v'

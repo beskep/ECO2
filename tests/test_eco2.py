@@ -114,4 +114,4 @@ def test_cli_input_dir(tmp_path: Path):
 
 
 if __name__ == '__main__':
-    pytest.main(['-v', '-k', 'dir'])
+    pytest.main()
