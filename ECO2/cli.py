@@ -1,4 +1,3 @@
-from itertools import chain
 from pathlib import Path
 import sys
 
@@ -7,9 +6,9 @@ from loguru import logger
 
 from ECO2.eco2 import Eco2
 
-_log_format = ('<green>{time:HH:mm:ss}</green> | '
+_LOG_FORMAT = ('<green>{time:HH:mm:ss}</green> | '
                '<level>{level: <8}</level> | '
-               '<cyan>{module}</cyan>:<cyan>{line}</cyan> '
+               '<cyan>{module}</cyan>:<cyan>{line: >4}</cyan> | '
                '<level>{message}</level>')
 
 
@@ -26,7 +25,7 @@ def cli(debug: bool):
     logger.remove()
     logger.add(sys.stdout,
                level=(10 if debug else 20),
-               format=_log_format,
+               format=_LOG_FORMAT,
                backtrace=False)
 
 
@@ -49,23 +48,26 @@ def decrypt(inputs: tuple, output):
         INPUTS: 해석할 ECO2 저장 파일의 경로.
                 폴더를 지정하는 경우 해당 폴더 내 모든 저장 파일을 대상으로 함.
     """
-    paths = [Path(x) for x in inputs]
+    inputs = tuple(Path(x) for x in inputs)
 
-    op = None
-    if len(paths) == 1:
-        if paths[0].is_dir():
-            paths = chain(paths[0].glob('*.eco'), paths[0].glob('*.tpl'))
-        elif output:
-            op = Path(output)
+    if len(inputs) == 1 and inputs[0].is_dir():
+        paths = tuple(x for x in inputs[0].glob('*')
+                      if x.is_file() and x.suffix in {'.eco', '.tpl'})
+    else:
+        paths = inputs
+
+    if not paths:
+        inputs_ = tuple(x.resolve().as_posix() for x in inputs)
+        raise FileNotFoundError(f'다음 경로에서 파일을 찾지 못함: {inputs_}')
+
+    op = Path(output) if (output and len(inputs) == 1) else None
 
     for path in paths:
-        header_path = op.with_suffix(Eco2.header_ext) if op else None
-        value_path = op.with_suffix(Eco2.value_ext) if op else None
+        header = op.with_suffix(Eco2.HEXT) if op else None
+        value = op.with_suffix(Eco2.VEXT) if op else None
 
         try:
-            Eco2.decrypt(path=path,
-                         header_path=header_path,
-                         value_path=value_path)
+            Eco2.decrypt(path=path, header=header, value=value)
         except (ValueError, OSError) as e:
             logger.exception(e)
 
@@ -89,28 +91,30 @@ def encrypt(inputs: tuple, header, output):
         INPUTS: 해석할 value 파일의 경로.
                 폴더를 지정하는 경우 해당 폴더 내 모든 xml 파일을 대상으로 함.
     """
-    paths = [Path(x) for x in inputs]
+    inputs = tuple(Path(x) for x in inputs)
 
-    header_path = None
-    output_path = None
-    if len(paths) == 1:
-        if paths[0].is_dir():
-            paths = paths[0].glob(f'*{Eco2.value_ext}')
-        elif output:
-            output_path = Path(output)
+    if len(inputs) == 1 and inputs[0].is_dir():
+        paths = tuple(inputs[0].glob(f'*{Eco2.VEXT}'))
+    else:
+        paths = inputs
 
-    if header:
-        header_path = Path(header)
+    if not paths:
+        inputs_ = tuple(x.resolve().as_posix() for x in inputs)
+        raise FileNotFoundError(f'다음 경로에서 파일을 찾지 못함: {inputs_}')
+
+    output = Path(output) if (output and len(inputs) == 1) else None
+    header = Path(header) if header else None
 
     for path in paths:
-        hp = header_path if header_path else path.with_suffix(Eco2.header_ext)
-        op = output_path if output_path else path.with_suffix('.eco')
+        hp = header if header else path.with_suffix(Eco2.HEXT)
+        op = output if output else path.with_suffix('.eco')
 
         try:
-            Eco2.encrypt(header_path=hp, value_path=path, save_path=op)
+            Eco2.encrypt(header=hp, value=path, save=op)
         except (ValueError, OSError) as e:
             logger.exception(e)
 
 
 if __name__ == '__main__':
+    # pylint: disable=no-value-for-parameter
     cli()

@@ -1,0 +1,14 @@
+name: ECO2
+channels:
+    - defaults
+    - conda-forge
+dependencies:
+    - python>=3.10
+    - loguru
+    - click
+    - cx_freeze
+    # dev
+    - pytest
+    - pylint
+    - yapf
+    - mypy

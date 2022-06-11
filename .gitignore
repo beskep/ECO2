@@ -138,6 +138,5 @@ dmypy.json
 cython_debug/
 
 # project
-tests/data/
 .vscode/
 *.cs
