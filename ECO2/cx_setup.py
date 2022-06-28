@@ -2,10 +2,11 @@ from cx_Freeze import Executable
 from cx_Freeze import setup
 
 if __name__ == '__main__':
+    excludes = ['email', 'html', 'http', 'pytest', 'tkinter', 'unittest']
     options = {
         'build_exe': {
             'optimize': 1,
-            'excludes': ['email', 'html', 'http', 'tkinter', 'unittest']
+            'excludes': excludes,
         }
     }
 

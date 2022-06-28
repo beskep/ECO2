@@ -37,34 +37,22 @@ class Eco2:
     def header_length(cls):
         return sum(x[0] for x in cls.HEADER)
 
-    @staticmethod
-    def _decode_chunk(b: bytes, length: int):
-        data = b[:length]
-        bnext = b[length:]
-
-        return data, bnext
-
     @classmethod
     def _decode_header(cls, data: bytes):
-        header = {}
-        b = data
+        value: bytes | str
         for length, name in cls.HEADER:
-            value, b = cls._decode_chunk(b=b, length=length)
+            value, data = data[:length], data[length:]
 
             try:
                 value = value.decode(cls.HENC)
             except ValueError:
                 pass
 
-            header[name] = value
-
-        return header
+            yield name, value
 
     @classmethod
     def _print_header_info(cls, header: bytes):
-        header_dict = cls._decode_header(header)
-
-        for key, value in header_dict.items():
+        for key, value in cls._decode_header(header):
             if key == 'password':
                 continue
 
@@ -108,16 +96,15 @@ class Eco2:
                 header: None | str | Path = None,
                 value: None | str | Path = None):
         path = Path(path)
-        header = (path.with_suffix(cls.HEXT)
-                  if header is None else Path(header))
-        value = (path.with_suffix(cls.VEXT) if value is None else Path(value))
+        header = path.with_suffix(cls.HEXT) if header is None else Path(header)
+        value = path.with_suffix(cls.VEXT) if value is None else Path(value)
 
         logger.info('Input: "{}"', path)
         logger.debug('Header: "{}"', header)
         logger.debug('Value: "{}"', value)
 
         data = path.read_bytes()
-        decrypt = (path.suffix == '.eco')
+        decrypt = path.suffix.lower() == '.eco'
 
         try:
             hdata, vdata = cls._decrypt(data=data, decrypt=decrypt)

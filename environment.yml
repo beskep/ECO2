@@ -1,7 +1,7 @@
 name: ECO2
 channels:
-    - defaults
     - conda-forge
+    - defaults
 dependencies:
     - python>=3.10
     - loguru
@@ -11,4 +11,5 @@ dependencies:
     - pytest
     - pylint
     - yapf
+    - toml
     - mypy
