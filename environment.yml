@@ -5,6 +5,7 @@ channels:
 dependencies:
     - python>=3.10
     - loguru
+    - rich
     - click
     - cx_freeze
     # dev

@@ -1,7 +1,10 @@
 from itertools import cycle
 from pathlib import Path
+from typing import Literal
 
 from loguru import logger
+
+from .utils import StrPath
 
 
 class Eco2:
@@ -16,14 +19,25 @@ class Eco2:
         (8, 'Password'),
     )
     KEY = (172, 41, 85, 66)
+    DS = '</DS>'
 
     HENC = 'EUC-KR'
     VENC = 'UTF-8'
-
     HEXT = '.header'
     VEXT = '.xml'
+    EEXT = '.eco'
 
-    DS = '</DS>'
+    _LOGLEVEL = {'header': 'DEBUG', 'src': 'INFO', 'dst': 'DEBUG'}
+    verbose = 2  # 1~3
+
+    @classmethod
+    def _loglvl(cls, kind: Literal['header', 'src', 'dst']):
+        if cls.verbose == 2:
+            lvl = cls._LOGLEVEL[kind]
+        else:
+            lvl = 'DEBUG' if cls.verbose < 2 else 'INFO'
+
+        return lvl
 
     @classmethod
     def decrypt_bytes(cls, data: bytes):
@@ -52,11 +66,9 @@ class Eco2:
 
     @classmethod
     def _print_header_info(cls, header: bytes):
+        lvl = cls._loglvl('header')
         for key, value in cls._decode_header(header):
-            if key == 'password':
-                continue
-
-            logger.info('[HEADER] {:10s}: {}', key, value)
+            logger.log(lvl, '[Header] {:10s}: {}', key, value)
 
     @classmethod
     def _write_value(cls, path: Path, value: str):
@@ -92,19 +104,33 @@ class Eco2:
 
     @classmethod
     def decrypt(cls,
-                path: str | Path,
-                header: None | str | Path = None,
-                value: None | str | Path = None):
+                path: StrPath,
+                header: StrPath | None = None,
+                value: StrPath | None = None):
+        """
+        `.eco`, `.tpl` 파일 복호화
+
+        Parameters
+        ----------
+        path : StrPath
+            ECO2 저장 파일 (`.eco`, `.tpl`) 경로
+        header : StrPath | None, optional
+            저장할 header 파일 경로.
+            `None`이면 path의 확장자를 `.header`로 변경한 경로.
+        value : StrPath | None, optional
+            저장할 header 파일 경로.
+            `None`이면 path의 확장자를 `.xml`로 변경한 경로.
+        """
         path = Path(path)
         header = path.with_suffix(cls.HEXT) if header is None else Path(header)
         value = path.with_suffix(cls.VEXT) if value is None else Path(value)
 
-        logger.info('Input: "{}"', path)
-        logger.debug('Header: "{}"', header)
-        logger.debug('Value: "{}"', value)
+        logger.log(cls._loglvl('src'), 'Input Path: "{}"', path)
+        logger.log(cls._loglvl('dst'), 'Header Path: "{}"', header)
+        logger.log(cls._loglvl('dst'), 'Value Path: "{}"', value)
 
         data = path.read_bytes()
-        decrypt = path.suffix.lower() == '.eco'
+        decrypt = path.suffix.lower() == cls.EEXT
 
         try:
             hdata, vdata = cls._decrypt(data=data, decrypt=decrypt)
@@ -117,25 +143,37 @@ class Eco2:
         cls._write_value(path=value, value=vdata)
 
     @classmethod
-    def _encrypt(cls, header: bytes, value: bytes, save_path: Path):
+    def _encrypt(cls, header: bytes, value: bytes, path: Path):
         encrypted = cls.encrypt_bytes(header + value)
-        save_path.write_bytes(encrypted)
+        path.write_bytes(encrypted)
 
     @classmethod
     def encrypt(cls,
-                header: str | Path,
-                value: str | Path,
-                save: None | str | Path = None):
+                header: StrPath,
+                value: StrPath,
+                path: StrPath | None = None):
+        """
+        `.eco` 파일 암호화
+
+        Parameters
+        ----------
+        header : StrPath
+            Header 파일 경로 (`.header`)
+        value : StrPath
+            Value 파일 경로 (`.xml`)
+        path : StrPath | None, optional
+            저장 경로. `None`이면 value의 확장자를 `.eco`로 변경한 경로.
+        """
         header = Path(header)
         value = Path(value)
-        save = Path(save) if save else value.with_suffix('.eco')
+        path = Path(path) if path else value.with_suffix(cls.EEXT)
 
-        logger.info('Value: "{}"', value)
-        logger.info('Header: "{}"', header)
-        logger.debug('Output: "{}"', save)
+        logger.log(cls._loglvl('src'), 'Value Path: "{}"', value)
+        logger.log(cls._loglvl('dst'), 'Header Path: "{}"', header)
+        logger.log(cls._loglvl('dst'), 'Output Path: "{}"', path)
 
         hdata = header.read_bytes()
         cls._print_header_info(hdata)
 
         vdata = cls._read_value(path=value).encode(cls.VENC)
-        cls._encrypt(header=hdata, value=vdata, save_path=save)
+        cls._encrypt(header=hdata, value=vdata, path=path)

@@ -18,13 +18,13 @@ def test_eco2(file, tmp_path: Path):
 
     header_path = data_path.with_suffix(Eco2.HEXT)
     value_path = data_path.with_suffix(Eco2.VEXT)
-    encrypted_path = tmp_path.joinpath(f'{data_path.stem}-encrypted.eco')
+    encrypted_path = tmp_path.joinpath(f'{data_path.stem}-encrypted{Eco2.EEXT}')
 
     header_path.unlink(missing_ok=True)
     value_path.unlink(missing_ok=True)
     encrypted_path.unlink(missing_ok=True)
 
-    is_eco = data_path.suffix == '.eco'
+    is_eco = data_path.suffix == Eco2.EEXT
 
     Eco2.decrypt(path=data_path)
 
@@ -38,7 +38,7 @@ def test_eco2(file, tmp_path: Path):
         # tpl 파일의 경우 결과부 (<DSR>)이 제거되어 value가 달라질 수 있음
         assert hash(value) == hash(saved_value)
 
-    Eco2.encrypt(header=header_path, value=value_path, save=encrypted_path)
+    Eco2.encrypt(header=header_path, value=value_path, path=encrypted_path)
 
     eco2 = data_path.read_bytes()
     encrypted = encrypted_path.read_bytes()
@@ -53,65 +53,64 @@ def test_eco2(file, tmp_path: Path):
 
 @pytest.mark.parametrize('file', files)
 def test_cli_input_file(file, tmp_path: Path):
-    data_path = tmp_path.joinpath(file)
-    copy2(src=data_dir.joinpath(file), dst=tmp_path)
+    header = tmp_path.joinpath(file).with_suffix(Eco2.HEXT)
+    value = tmp_path.joinpath(file).with_suffix(Eco2.VEXT)
 
-    header_path = data_path.with_suffix(Eco2.HEXT)
-    value_path = data_path.with_suffix(Eco2.VEXT)
-    encrypted_path = tmp_path.joinpath(f'{data_path.stem}-encrypted.eco')
+    header.unlink(missing_ok=True)
+    value.unlink(missing_ok=True)
 
-    header_path.unlink(missing_ok=True)
-    value_path.unlink(missing_ok=True)
-    encrypted_path.unlink(missing_ok=True)
-
+    # decrypt
     runner = CliRunner()
     runner.invoke(cli, [
         '-d',
         'decrypt',
         '--output',
-        value_path.as_posix(),
-        data_path.as_posix(),
+        value.parent.as_posix(),
+        data_dir.joinpath(file).as_posix(),
     ])
 
-    assert header_path.exists(), header_path
-    assert value_path.exists(), value_path
+    assert header.exists(), header
+    assert value.exists(), value
 
+    encrypted = tmp_path.joinpath(file).with_suffix(Eco2.EEXT)
+    encrypted.unlink(missing_ok=True)
+
+    # encrypt
     runner.invoke(cli, [
         '-d',
         'encrypt',
         '--header',
-        header_path.as_posix(),
+        header.as_posix(),
         '--output',
-        encrypted_path.as_posix(),
-        value_path.as_posix(),
+        tmp_path.as_posix(),
+        value.as_posix(),
     ])
 
-    assert encrypted_path.exists(), encrypted_path
+    assert encrypted.exists(), encrypted
 
-    header_path.unlink(missing_ok=True)
-    value_path.unlink(missing_ok=True)
-    encrypted_path.unlink(missing_ok=True)
+    header.unlink(missing_ok=True)
+    value.unlink(missing_ok=True)
+    encrypted.unlink(missing_ok=True)
 
 
 def test_cli_input_dir(tmp_path: Path):
-    for file in files:
-        copy2(src=data_dir.joinpath(file), dst=tmp_path)
-
     runner = CliRunner()
-    runner.invoke(cli, ['--debug', 'decrypt', tmp_path.as_posix()])
+    runner.invoke(cli, [
+        '--debug', 'decrypt', '--output',
+        tmp_path.as_posix(),
+        data_dir.as_posix()
+    ])
 
     for file in files:
-        data_path = tmp_path.joinpath(file)
-        data_path.unlink()
-
-        header = data_path.with_suffix(Eco2.HEXT)
-        value = data_path.with_suffix(Eco2.VEXT)
+        header = tmp_path.joinpath(file).with_suffix(Eco2.HEXT)
+        value = tmp_path.joinpath(file).with_suffix(Eco2.VEXT)
         assert header.exists(), header
         assert value.exists(), value
 
     runner.invoke(cli, ['--debug', 'encrypt', tmp_path.as_posix()])
     for file in files:
-        assert tmp_path.joinpath(file).with_suffix('.eco').exists()
+        f = tmp_path.joinpath(file).with_suffix(Eco2.EEXT)
+        assert f.exists(), f
 
 
 if __name__ == '__main__':
