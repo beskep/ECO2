@@ -1,3 +1,4 @@
+import contextlib
 from itertools import cycle
 from pathlib import Path
 from typing import Literal
@@ -5,6 +6,10 @@ from typing import Literal
 from loguru import logger
 
 from .utils import StrPath
+
+
+class Eco2DecodeError(ValueError):
+    pass
 
 
 class Eco2:
@@ -28,20 +33,21 @@ class Eco2:
     EEXT = '.eco'
 
     _LOGLEVEL = {'header': 'DEBUG', 'src': 'INFO', 'dst': 'DEBUG'}
+    DEFAULT_VERBOSE = 2
     verbose = 2  # 1~3
 
     @classmethod
     def _loglvl(cls, kind: Literal['header', 'src', 'dst']):
-        if cls.verbose == 2:
+        if cls.verbose == cls.DEFAULT_VERBOSE:
             lvl = cls._LOGLEVEL[kind]
         else:
-            lvl = 'DEBUG' if cls.verbose < 2 else 'INFO'
+            lvl = 'DEBUG' if cls.verbose < cls.DEFAULT_VERBOSE else 'INFO'
 
         return lvl
 
     @classmethod
     def decrypt_bytes(cls, data: bytes):
-        return bytes(d ^ k for d, k in zip(data, cycle(cls.KEY)))
+        return bytes(d ^ k for d, k in zip(data, cycle(cls.KEY), strict=False))
 
     @classmethod
     def encrypt_bytes(cls, data: bytes):
@@ -57,10 +63,8 @@ class Eco2:
         for length, name in cls.HEADER:
             value, data = data[:length], data[length:]
 
-            try:
+            with contextlib.suppress(ValueError):
                 value = value.decode(cls.HENC)
-            except ValueError:
-                pass
 
             yield name, value
 
@@ -79,7 +83,7 @@ class Eco2:
         return path.read_text(encoding=cls.VENC).replace('\n', '\r\n')
 
     @classmethod
-    def _decrypt(cls, data: bytes, decrypt: bool):
+    def _decrypt(cls, data: bytes, *, decrypt: bool):
         if decrypt:
             data = cls.decrypt_bytes(data)
 
@@ -96,17 +100,19 @@ class Eco2:
             value = value_bytes.decode(cls.VENC, 'replace')
 
             if cls.DS not in value:
-                raise ValueError('인코딩 에러') from e
+                raise Eco2DecodeError from e
 
-            value = value[:(value.find(cls.DS) + len(cls.DS))]
+            value = value[: (value.find(cls.DS) + len(cls.DS))]
 
         return header_bytes, value
 
     @classmethod
-    def decrypt(cls,
-                path: StrPath,
-                header: StrPath | None = None,
-                value: StrPath | None = None):
+    def decrypt(
+        cls,
+        path: StrPath,
+        header: StrPath | None = None,
+        value: StrPath | None = None,
+    ):
         """
         `.eco`, `.tpl` 파일 복호화
 
@@ -135,7 +141,7 @@ class Eco2:
         try:
             hdata, vdata = cls._decrypt(data=data, decrypt=decrypt)
         except ValueError:
-            hdata, vdata = cls._decrypt(data=data, decrypt=(not decrypt))
+            hdata, vdata = cls._decrypt(data=data, decrypt=not decrypt)
 
         cls._print_header_info(hdata)
 
@@ -148,10 +154,12 @@ class Eco2:
         path.write_bytes(encrypted)
 
     @classmethod
-    def encrypt(cls,
-                header: StrPath,
-                value: StrPath,
-                path: StrPath | None = None):
+    def encrypt(
+        cls,
+        header: StrPath,
+        value: StrPath,
+        path: StrPath | None = None,
+    ):
         """
         `.eco` 파일 암호화
 

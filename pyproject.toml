@@ -1,42 +1,24 @@
-[tool.yapf]
-based_on_style = 'google'
-
-[tool.yapfignore]
-ignore_patterns = ['build/']
+[tool.pyink]
+pyink-use-majority-quotes = true
+line-length = 80
+preview = true
 
 [tool.isort]
-profile = 'google'
+profile = 'black'
 
-[tool.pylint.MASTER]
-load-plugins = ['pylint.extensions.mccabe', 'pylint.extensions.docparams']
+[tool.ruff]
+select = ['ALL']
+ignore = ['ANN', 'COM', 'D', 'EM', 'Q', 'S101']
 
 [tool.pylint.messages_control]
-enable = [
-    'F',
-    'E',
-    'anomalous-backslash-in-string',
-    'bad-format-string',
-    'bad-open-mode',
-    'binary-op-exception',
-    'duplicate-key',
-    'global-variable-not-assigned',
-    'unnecessary-semicolon',
-    'unreachable',
-]
 disable = [
-    'bad-indentation',
-    'c-extension-no-member',
     'fixme',
     'import-error',
     'invalid-name',
     'missing-class-docstring',
     'missing-function-docstring',
     'missing-module-docstring',
-    'missing-raises-doc',
-    'missing-return-doc',
-    'protected-access',
     'redefined-outer-name',
-    'superfluous-parens',
     'too-few-public-methods',
     'too-many-arguments',
     'trailing-whitespace',
@@ -48,6 +30,9 @@ disable = [
 
 [tool.mypy]
 disable_error_code = ['var-annotated', 'import']
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_unused_configs = true
 
 [tool.pytest.ini_options]
 addopts = '-v'

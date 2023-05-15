@@ -1,14 +1,18 @@
 from pathlib import Path
 from shutil import copy2
 
-from click.testing import CliRunner
 import pytest
+from typer.testing import CliRunner
 
-from ECO2.cli import cli
+from ECO2.cli import app
 from ECO2.eco2 import Eco2
+
+# pylint: disable=protected-access
+# ruff: noqa: SLF001
 
 data_dir = Path(__file__).parent.joinpath('data')
 files = ['test_eco.eco', 'test_tpl.tpl']
+runner = CliRunner()
 
 
 @pytest.mark.parametrize('file', files)
@@ -60,14 +64,8 @@ def test_cli_input_file(file, tmp_path: Path):
     value.unlink(missing_ok=True)
 
     # decrypt
-    runner = CliRunner()
-    runner.invoke(cli, [
-        '-d',
-        'decrypt',
-        '--output',
-        value.parent.as_posix(),
-        data_dir.joinpath(file).as_posix(),
-    ])
+    args = ['-d', 'decrypt', '--output', value.parent, data_dir / file]
+    runner.invoke(app, list(map(str, args)))
 
     assert header.exists(), header
     assert value.exists(), value
@@ -76,15 +74,8 @@ def test_cli_input_file(file, tmp_path: Path):
     encrypted.unlink(missing_ok=True)
 
     # encrypt
-    runner.invoke(cli, [
-        '-d',
-        'encrypt',
-        '--header',
-        header.as_posix(),
-        '--output',
-        tmp_path.as_posix(),
-        value.as_posix(),
-    ])
+    args = ['-d', 'encrypt', '--header', header, '--output', tmp_path, value]
+    runner.invoke(app, list(map(str, args)))
 
     assert encrypted.exists(), encrypted
 
@@ -94,12 +85,8 @@ def test_cli_input_file(file, tmp_path: Path):
 
 
 def test_cli_input_dir(tmp_path: Path):
-    runner = CliRunner()
-    runner.invoke(cli, [
-        '--debug', 'decrypt', '--output',
-        tmp_path.as_posix(),
-        data_dir.as_posix()
-    ])
+    args = ['--debug', 'decrypt', '--output', tmp_path, data_dir]
+    runner.invoke(app, list(map(str, args)))
 
     for file in files:
         header = tmp_path.joinpath(file).with_suffix(Eco2.HEXT)
@@ -107,11 +94,8 @@ def test_cli_input_dir(tmp_path: Path):
         assert header.exists(), header
         assert value.exists(), value
 
-    runner.invoke(cli, ['--debug', 'encrypt', tmp_path.as_posix()])
+    args = ['--debug', 'encrypt', tmp_path]
+    runner.invoke(app, list(map(str, args)))
     for file in files:
         f = tmp_path.joinpath(file).with_suffix(Eco2.EEXT)
         assert f.exists(), f
-
-
-if __name__ == '__main__':
-    pytest.main()

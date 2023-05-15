@@ -1,5 +1,4 @@
-from cx_Freeze import Executable
-from cx_Freeze import setup
+from cx_Freeze import Executable, setup
 
 if __name__ == '__main__':
     excludes = ['email', 'html', 'http', 'pytest', 'tkinter', 'unittest']
@@ -14,8 +13,10 @@ if __name__ == '__main__':
         Executable(script=r'ECO2\cli.py', target_name='ECO2'),
     ]
 
-    setup(name='ECO2',
-          version='0.1',
-          description='ECO2',
-          options=options,
-          executables=executables)
+    setup(
+        name='ECO2',
+        version='0.1',
+        description='ECO2',
+        options=options,
+        executables=executables,
+    )
