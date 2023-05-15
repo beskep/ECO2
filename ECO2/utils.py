@@ -1,5 +1,4 @@
 from logging import LogRecord
-from os import PathLike
 
 from loguru import logger
 from rich.console import Console
@@ -22,13 +21,12 @@ class _Handler(RichHandler):
     _NEW_LVLS = {5: 'TRACE', 25: 'SUCCESS', BLANK_NO: ''}
 
     def emit(self, record: LogRecord) -> None:
-        if record.levelno in self._NEW_LVLS:
-            record.levelname = self._NEW_LVLS[record.levelno]
+        if name := self._NEW_LVLS.get(record.levelno, None):
+            record.levelname = name
 
         return super().emit(record)
 
 
-StrPath = str | PathLike
 console = Console(theme=Theme({'logging.level.success': 'blue'}))
 _handler = _Handler(console=console, markup=True, log_time_format='[%X]')
 

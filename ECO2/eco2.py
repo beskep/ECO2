@@ -1,15 +1,10 @@
 import contextlib
 from itertools import cycle
+from os import PathLike
 from pathlib import Path
 from typing import Literal
 
 from loguru import logger
-
-from .utils import StrPath
-
-
-class Eco2DecodeError(ValueError):
-    pass
 
 
 class Eco2:
@@ -25,6 +20,7 @@ class Eco2:
     )
     KEY = (172, 41, 85, 66)
     DS = '</DS>'
+    DSR = '<DSR xmlns="http://tempuri.org/DSR.xsd">'
 
     HENC = 'EUC-KR'
     VENC = 'UTF-8'
@@ -91,40 +87,36 @@ class Eco2:
         header_bytes = data[:hl]
         value_bytes = data[hl:]
 
-        try:
-            value = value_bytes.decode(cls.VENC)
-        except ValueError as e:
-            # 케이스 설정 부분 (<DS>...</DS>)만 추출하고
-            # 결과부 (<DSR>...</DSR>)은 버림
-            logger.debug('ECO2 파일의 결과부 (DSR)를 제외합니다.')
-            value = value_bytes.decode(cls.VENC, 'replace')
+        value = value_bytes.decode(encoding=cls.VENC, errors='ignore')
 
-            if cls.DS not in value:
-                raise Eco2DecodeError from e
-
-            value = value[: (value.find(cls.DS) + len(cls.DS))]
+        if (i := value.find(cls.DSR)) != -1:
+            # 결과부 (<DSR>)가 존재하는 경우,
+            # <DS>와 <DSR> 사이 decode 불가능한 데이터 제거
+            # (안해도 출력엔 지장 없음)
+            ds = value[: (value.find(cls.DS) + len(cls.DS))]
+            dsr = value[i:]
+            value = f'{ds}\n{dsr}'
 
         return header_bytes, value
 
     @classmethod
     def decrypt(
         cls,
-        path: StrPath,
-        header: StrPath | None = None,
-        value: StrPath | None = None,
+        path: str | PathLike,
+        header: str | PathLike | None = None,
+        value: str | PathLike | None = None,
     ):
-        """
-        `.eco`, `.tpl` 파일 복호화
+        """`.eco`, `.tpl` 파일 복호화.
 
         Parameters
         ----------
-        path : StrPath
+        path : str | PathLike
             ECO2 저장 파일 (`.eco`, `.tpl`) 경로
-        header : StrPath | None, optional
+        header : str | PathLike | None, optional
             저장할 header 파일 경로.
             `None`이면 path의 확장자를 `.header`로 변경한 경로.
-        value : StrPath | None, optional
-            저장할 header 파일 경로.
+        value : str | PathLike | None, optional
+            저장할 value 파일 경로.
             `None`이면 path의 확장자를 `.xml`로 변경한 경로.
         """
         path = Path(path)
@@ -156,20 +148,19 @@ class Eco2:
     @classmethod
     def encrypt(
         cls,
-        header: StrPath,
-        value: StrPath,
-        path: StrPath | None = None,
+        header: str | PathLike,
+        value: str | PathLike,
+        path: str | PathLike | None = None,
     ):
-        """
-        `.eco` 파일 암호화
+        """`.eco` 파일 암호화.
 
         Parameters
         ----------
-        header : StrPath
+        header : str | PathLike
             Header 파일 경로 (`.header`)
-        value : StrPath
+        value : str | PathLike
             Value 파일 경로 (`.xml`)
-        path : StrPath | None, optional
+        path : str | PathLike | None, optional
             저장 경로. `None`이면 value의 확장자를 `.eco`로 변경한 경로.
         """
         header = Path(header)
