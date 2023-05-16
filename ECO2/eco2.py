@@ -105,6 +105,8 @@ class Eco2:
         path: str | PathLike,
         header: str | PathLike | None = None,
         value: str | PathLike | None = None,
+        *,
+        write_header=True,
     ):
         """`.eco`, `.tpl` 파일 복호화.
 
@@ -118,6 +120,8 @@ class Eco2:
         value : str | PathLike | None, optional
             저장할 value 파일 경로.
             `None`이면 path의 확장자를 `.xml`로 변경한 경로.
+        write_header : bool, optional
+            header 저장 여부
         """
         path = Path(path)
         header = path.with_suffix(cls.HEXT) if header is None else Path(header)
@@ -137,7 +141,9 @@ class Eco2:
 
         cls._print_header_info(hdata)
 
-        header.write_bytes(hdata)
+        if write_header:
+            header.write_bytes(hdata)
+
         cls._write_value(path=value, value=vdata)
 
     @classmethod

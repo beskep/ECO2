@@ -34,6 +34,7 @@ class HELP:
         '저장할 파일 경로. 대상 경로 아래 파일명이 원본과 같은 header'
         ' (`.header`)와 value (`.xml`) 파일을 저장함'
     )
+    DH = 'Header 파일 저장 여부'
 
     EI = (
         '해석할 value 파일의 경로. 폴더를 지정하는 경우 해당 폴더 내 모든'
@@ -53,6 +54,9 @@ class HELP:
 def decrypt(
     inputs: list[Path] = typer.Argument(..., show_default=False, help=HELP.DI),
     output: Optional[Path] = typer.Option(None, '--output', '-o', help=HELP.DO),
+    write_header: bool = typer.Option(
+        True, '--header/--no-header', '-h/-H', help=HELP.DH
+    ),
 ):
     """ECO2 저장 파일 (`.eco`, `.tpl`)을 해석해서 header와 value 파일로 나눠 저장"""
     if len(inputs) == 1 and inputs[0].is_dir():
@@ -78,7 +82,9 @@ def decrypt(
         value = output / f'{path.stem}{Eco2.VEXT}' if output else None
 
         try:
-            Eco2.decrypt(path=path, header=header, value=value)
+            Eco2.decrypt(
+                path=path, header=header, value=value, write_header=write_header
+            )
         except (ValueError, OSError) as e:
             logger.exception(e)
 
