@@ -1,6 +1,5 @@
 [tool.pyink]
 pyink-use-majority-quotes = true
-line-length = 80
 preview = true
 
 [tool.isort]
@@ -8,7 +7,7 @@ profile = 'black'
 
 [tool.ruff]
 select = ['ALL']
-ignore = ['ANN', 'COM', 'D', 'EM', 'Q', 'S101']
+ignore = ['ANN', 'COM', 'D', 'EM', 'Q', 'S101', 'T20']
 
 [tool.pylint.messages_control]
 disable = [

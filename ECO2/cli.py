@@ -7,17 +7,14 @@ from loguru import logger
 from ECO2.eco2 import Eco2
 from ECO2.utils import set_logger, track
 
-# ruff: noqa: B008 FBT001 FBT003 UP007
+# ruff: noqa: B008 UP007
 
 
-def callback(
-    debug: bool = typer.Option(
-        False, '--debug', '-d', help='Show debug message'
-    ),
-    verbose: int = typer.Option(
-        2, '--verbose', '-v', count=True, help='Verbosity (default: `-vv`)'
-    ),
-):
+_debug = typer.Option(False, '--debug', '-d', help='Show debug message')  # noqa: FBT003
+_verbose = typer.Option(2, '-v', count=True, help='Verbosity (default: `-vv`)')
+
+
+def callback(*, debug: bool = _debug, verbose: int = _verbose):
     set_logger(level=10 if debug else 20)
     Eco2.verbose = verbose
 
@@ -44,18 +41,19 @@ class HELP:
         'header 파일 경로. 미지정 시 value 파일과 동일한 경로·이름에 확장자가'
         ' `.header`인 파일로 추정.'
     )
-    EO = (
-        '저장할 파일의 경로. 대상 경로 아래 파일명이 value 파일과 같은 `.eco`'
-        ' 파일을 저장함'
-    )
+    EO = '저장할 파일의 경로. 대상 경로 아래 파일명이 value 파일과 같은 `.eco` 파일을 저장함'
 
 
 @app.command()
 def decrypt(
+    *,
     inputs: list[Path] = typer.Argument(..., show_default=False, help=HELP.DI),
     output: Optional[Path] = typer.Option(None, '--output', '-o', help=HELP.DO),
     write_header: bool = typer.Option(
-        True, '--header/--no-header', '-h/-H', help=HELP.DH
+        True,  # noqa: FBT003
+        '--header/--no-header',
+        '-h/-H',
+        help=HELP.DH,
     ),
 ):
     """ECO2 저장 파일 (`.eco`, `.tpl`)을 해석해서 header와 value 파일로 나눠 저장"""
@@ -94,6 +92,7 @@ def decrypt(
 
 @app.command()
 def encrypt(
+    *,
     inputs: list[Path] = typer.Argument(..., show_default=False, help=HELP.EI),
     header: Optional[Path] = typer.Option(None, '--header', '-h', help=HELP.EH),
     output: Optional[Path] = typer.Option(None, '--output', '-o', help=HELP.EO),

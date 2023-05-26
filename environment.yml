@@ -7,6 +7,7 @@ dependencies:
     - rich
     - typer
     - cx_freeze
+    - lxml
     # dev
     - pytest
     - pyink

@@ -1,9 +1,11 @@
 import re
-from io import StringIO
 from pathlib import Path
 from xml.etree import ElementTree as ET  # noqa: N817
 
-# ruff: noqa: S314
+from lxml import etree
+
+# pylint: disable=c-extension-no-member
+# ruff: noqa: S314, S320
 
 
 def get_namespace(element: ET.Element):
@@ -28,6 +30,7 @@ class Eco2Data:
     @classmethod
     def read_xml(cls, path):
         text = Path(path).read_text('UTF-8')
+        parser = etree.XMLParser(recover=True)
 
         if (i := text.find(cls.DSRT)) == -1:
             tds = text
@@ -37,15 +40,15 @@ class Eco2Data:
             tdsr = text[i:]
 
         # 입력 변수 xml
-        ds = ET.parse(StringIO(tds))
-        assert get_namespace(ds.getroot()) == cls.DS
+        ds = etree.fromstring(tds, parser=parser)
+        assert get_namespace(ds) == cls.DS
 
         if tdsr is None:
             dsr = None
         else:
             # 결과 xml
-            dsr = ET.parse(StringIO(tdsr))
-            assert get_namespace(dsr.getroot()) == cls.DSR
+            dsr = etree.fromstring(tdsr, parser=parser)
+            assert get_namespace(dsr) == cls.DSR
 
         return (ds, dsr)
 
@@ -62,19 +65,24 @@ class Eco2Data:
         yield from elemenet.iterfind(path, namespaces=cls.NSDS)
         yield from elemenet.iterfind(path, namespaces=cls.NSDSR)
 
-    @classmethod
-    def find(cls, elemenet: ET.Element, path: str):
-        return next(cls.iterfind(elemenet=elemenet, path=path))
-
-    @classmethod
-    def monthly_data(cls, elemenet: ET.Element):
-        return (
-            float(cls.find(elemenet=elemenet, path=f'M{x:02d}').text)
-            for x in range(1, 13)
-        )
-
     def findall(self, path: str):
         yield from self.ds.iterfind(path, namespaces=self.NSDS)
 
         if self.dsr is not None:
             yield from self.dsr.iterfind(path, namespaces=self.NSDSR)
+
+    @classmethod
+    def find(cls, elemenet: ET.Element, path: str):
+        return next(cls.iterfind(elemenet=elemenet, path=path), None)
+
+    @classmethod
+    def findtext(cls, elemenet: ET.Element, path: str):
+        e = cls.find(elemenet=elemenet, path=path)
+        return None if e is None else e.text
+
+    @classmethod
+    def monthly_data(cls, elemenet: ET.Element):
+        return (
+            float(cls.findtext(elemenet=elemenet, path=f'M{x:02d}'))
+            for x in range(1, 13)
+        )

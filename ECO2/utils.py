@@ -1,4 +1,6 @@
+from collections.abc import Iterable, Sequence
 from logging import LogRecord
+from typing import TypeVar
 
 from loguru import logger
 from rich.console import Console
@@ -40,16 +42,13 @@ def set_logger(level: int | str = 20):
             raise KeyError(msg) from e
 
     logger.remove()
-    logger.add(
-        _handler, level=level, format='{message}', backtrace=False, enqueue=True
-    )
+    logger.add(_handler, level=level, format='{message}', backtrace=False)
     logger.add(
         'eco2.log',
         level='DEBUG',
         rotation='1 month',
         retention='1 year',
         encoding='UTF-8-SIG',
-        enqueue=True,
     )
 
     try:
@@ -59,8 +58,11 @@ def set_logger(level: int | str = 20):
         logger.level(name='BLANK', no=_Handler.BLANK_NO)
 
 
+_T = TypeVar('_T')
+
+
 def track(
-    sequence,
+    sequence: Sequence[_T] | Iterable[_T],
     description='Working...',
     total: float | None = None,
     **kwargs,
