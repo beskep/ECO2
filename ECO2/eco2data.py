@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from typing import ClassVar
 from xml.etree import ElementTree as ET  # noqa: N817
 
 from lxml import etree
@@ -21,15 +22,16 @@ class Eco2Data:
     DSRT = f'<DSR xmlns="{DSR}">'
 
     # namespace
-    NSDS = {'': DS}
-    NSDSR = {'': DSR}
+    NSDS: ClassVar[dict[str, str]] = {'': DS}
+    NSDSR: ClassVar[dict[str, str]] = {'': DSR}
 
     def __init__(self, xml: str | Path) -> None:
-        self._ds, self._dsr = self.read_xml(xml)
+        self._xml = Path(xml)
+        self._ds, self._dsr = self.read_xml(self._xml)
 
     @classmethod
-    def read_xml(cls, path):
-        text = Path(path).read_text('UTF-8')
+    def read_xml(cls, path: Path):
+        text = path.read_text('UTF-8')
         parser = etree.XMLParser(recover=True)
 
         if (i := text.find(cls.DSRT)) == -1:
@@ -53,6 +55,10 @@ class Eco2Data:
         return (ds, dsr)
 
     @property
+    def xml(self) -> Path:
+        return self._xml
+
+    @property
     def ds(self) -> ET.ElementTree:
         return self._ds
 
@@ -61,9 +67,9 @@ class Eco2Data:
         return self._dsr
 
     @classmethod
-    def iterfind(cls, elemenet: ET.Element, path: str):
-        yield from elemenet.iterfind(path, namespaces=cls.NSDS)
-        yield from elemenet.iterfind(path, namespaces=cls.NSDSR)
+    def iterfind(cls, element: ET.Element, path: str):
+        yield from element.iterfind(path, namespaces=cls.NSDS)
+        yield from element.iterfind(path, namespaces=cls.NSDSR)
 
     def findall(self, path: str):
         yield from self.ds.iterfind(path, namespaces=self.NSDS)
@@ -72,17 +78,17 @@ class Eco2Data:
             yield from self.dsr.iterfind(path, namespaces=self.NSDSR)
 
     @classmethod
-    def find(cls, elemenet: ET.Element, path: str):
-        return next(cls.iterfind(elemenet=elemenet, path=path), None)
+    def find(cls, element: ET.Element, path: str):
+        return next(cls.iterfind(element=element, path=path), None)
 
     @classmethod
-    def findtext(cls, elemenet: ET.Element, path: str):
-        e = cls.find(elemenet=elemenet, path=path)
+    def findtext(cls, element: ET.Element, path: str):
+        e = cls.find(element=element, path=path)
         return None if e is None else e.text
 
     @classmethod
-    def monthly_data(cls, elemenet: ET.Element):
+    def monthly_data(cls, element: ET.Element):
         return (
-            float(cls.findtext(elemenet=elemenet, path=f'M{x:02d}'))
+            float(cls.findtext(element=element, path=f'M{x:02d}') or 'nan')
             for x in range(1, 13)
         )

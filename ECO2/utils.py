@@ -1,6 +1,6 @@
 from collections.abc import Iterable, Sequence
 from logging import LogRecord
-from typing import TypeVar
+from typing import ClassVar, TypeVar
 
 from loguru import logger
 from rich.console import Console
@@ -10,7 +10,7 @@ from rich.theme import Theme
 
 
 class _Handler(RichHandler):
-    LVLS = {
+    LVLS: ClassVar[dict[str, int]] = {
         'TRACE': 5,
         'DEBUG': 10,
         'INFO': 20,
@@ -20,7 +20,7 @@ class _Handler(RichHandler):
         'CRITICAL': 50,
     }
     BLANK_NO = 21
-    _NEW_LVLS = {5: 'TRACE', 25: 'SUCCESS', BLANK_NO: ''}
+    _NEW_LVLS: ClassVar[dict[int, str]] = {5: 'TRACE', 25: 'SUCCESS', BLANK_NO: ''}
 
     def emit(self, record: LogRecord) -> None:
         if name := self._NEW_LVLS.get(record.levelno, None):

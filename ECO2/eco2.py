@@ -2,7 +2,7 @@ import contextlib
 from itertools import cycle
 from os import PathLike
 from pathlib import Path
-from typing import Literal
+from typing import ClassVar, Literal
 
 from loguru import logger
 
@@ -28,7 +28,11 @@ class Eco2:
     VEXT = '.xml'
     EEXT = '.eco'
 
-    _LOGLEVEL = {'header': 'DEBUG', 'src': 'INFO', 'dst': 'DEBUG'}
+    _LOGLEVEL: ClassVar[dict[str, str]] = {
+        'header': 'DEBUG',
+        'src': 'INFO',
+        'dst': 'DEBUG',
+    }
     DEFAULT_VERBOSE = 2
     verbose = 2  # 1~3
 
