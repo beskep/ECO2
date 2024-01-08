@@ -1,28 +1,32 @@
+# pylint: disable=protected-access
+# ruff: noqa: SLF001
+
 from pathlib import Path
 from shutil import copy2
 
 import pytest
+from lxml.etree import _Element  # pylint: disable=no-name-in-module
 from typer.testing import CliRunner
 
 from ECO2.cli import app
 from ECO2.eco2 import Eco2
+from ECO2.eco2data import Eco2Data
 
-# pylint: disable=protected-access
-# ruff: noqa: SLF001
-
-data_dir = Path(__file__).parent.joinpath('data')
+data_dir = Path(__file__).parent / 'data'
 files = ['test_eco.eco', 'test_tpl.tpl']
+
+
 runner = CliRunner()
 
 
 @pytest.mark.parametrize('file', files)
 def test_eco2(file, tmp_path: Path):
-    data_path = tmp_path.joinpath(file)
-    copy2(src=data_dir.joinpath(file), dst=data_path)
+    data_path = tmp_path / file
+    copy2(src=data_dir / file, dst=data_path)
 
     header_path = data_path.with_suffix(Eco2.HEXT)
     value_path = data_path.with_suffix(Eco2.VEXT)
-    encrypted_path = tmp_path.joinpath(f'{data_path.stem}-encrypted{Eco2.EEXT}')
+    encrypted_path = tmp_path / f'{data_path.stem}-encrypted{Eco2.EEXT}'
 
     header_path.unlink(missing_ok=True)
     value_path.unlink(missing_ok=True)
@@ -99,3 +103,18 @@ def test_cli_input_dir(tmp_path: Path):
     for file in files:
         f = tmp_path.joinpath(file).with_suffix(Eco2.EEXT)
         assert f.exists(), f
+
+
+@pytest.mark.parametrize('file', files)
+def test_eco2data(file: Path):
+    path = data_dir / file
+    if not (xml := path.with_suffix(Eco2.VEXT)).exists():
+        Eco2.decrypt(path, write_header=False)
+
+    data = Eco2Data(xml)
+
+    assert isinstance(data.xml, Path)
+    assert isinstance(data.ds, _Element)
+    assert data.dsr is None or isinstance(data.dsr, _Element)
+
+    # TODO eco2data typing, test cover

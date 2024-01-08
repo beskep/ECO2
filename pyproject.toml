@@ -1,13 +1,18 @@
-[tool.pyink]
-pyink-use-majority-quotes = true
-preview = true
-
-[tool.isort]
-profile = 'black'
+[project]
+name = 'ECO2'
+version = '0.1.3'
+requires-python = '>=3.11'
 
 [tool.ruff]
 select = ['ALL']
-ignore = ['ANN', 'COM', 'D', 'EM', 'Q', 'S101', 'T20']
+ignore = ['ANN', 'COM', 'D1', 'FIX', 'ISC001', 'Q', 'S101', 'T20', 'TD']
+
+[tool.ruff.format]
+preview = true
+quote-style = 'single'
+
+[tool.ruff.lint.pydocstyle]
+convention = 'numpy'
 
 [tool.pylint.messages_control]
 disable = [

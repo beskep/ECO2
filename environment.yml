@@ -1,17 +1,16 @@
 name: ECO2
 channels:
-    - conda-forge
+  - conda-forge
 dependencies:
-    - python>=3.10
-    - loguru
-    - rich
-    - typer
-    - cx_freeze
-    - lxml
-    # dev
-    - pytest
-    - pyink
-    - isort
-    - pylint
-    - mypy
-    - ruff
+  - python>=3.11
+  - lxml
+  - loguru
+  - rich
+  - typer
+  - cx_freeze
+  # dev
+  - pytest
+  - coverage
+  - pylint
+  - mypy
+  - ruff

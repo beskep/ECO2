@@ -1,12 +1,12 @@
+# pylint: disable=c-extension-no-member
+# ruff: noqa: S314, S320
+
 import re
 from pathlib import Path
 from typing import ClassVar
 from xml.etree import ElementTree as ET  # noqa: N817
 
 from lxml import etree
-
-# pylint: disable=c-extension-no-member
-# ruff: noqa: S314, S320
 
 
 def get_namespace(element: ET.Element):

@@ -1,7 +1,7 @@
 from cx_Freeze import Executable, setup
 
 if __name__ == '__main__':
-    excludes = ['email', 'html', 'http', 'pytest', 'tkinter', 'unittest']
+    excludes = ['email', 'http', 'pytest', 'tkinter', 'unittest']
     options = {
         'build_exe': {
             'optimize': 1,
@@ -14,9 +14,6 @@ if __name__ == '__main__':
     ]
 
     setup(
-        name='ECO2',
-        version='0.1',
-        description='ECO2',
         options=options,
         executables=executables,
     )

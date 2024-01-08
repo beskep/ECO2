@@ -1,3 +1,5 @@
+# ruff: noqa: B008 UP007
+
 from pathlib import Path
 from typing import Optional
 
@@ -6,9 +8,6 @@ from loguru import logger
 
 from ECO2.eco2 import Eco2
 from ECO2.utils import set_logger, track
-
-# ruff: noqa: B008 UP007
-
 
 _debug = typer.Option(False, '--debug', '-d', help='Show debug message')  # noqa: FBT003
 _verbose = typer.Option(2, '-v', count=True, help='Verbosity (default: `-vv`)')
@@ -41,7 +40,10 @@ class HELP:
         'header 파일 경로. 미지정 시 value 파일과 동일한 경로·이름에 확장자가'
         ' `.header`인 파일로 추정.'
     )
-    EO = '저장할 파일의 경로. 대상 경로 아래 파일명이 value 파일과 같은 `.eco` 파일을 저장함'
+    EO = (
+        '저장할 파일의 경로. 대상 경로 아래 파일명이 value 파일과 같은 '
+        '`.eco` 파일을 저장함'
+    )
 
 
 @app.command()
@@ -56,7 +58,7 @@ def decrypt(
         help=HELP.DH,
     ),
 ):
-    """ECO2 저장 파일 (`.eco`, `.tpl`)을 해석해서 header와 value 파일로 나눠 저장"""
+    """ECO2 저장 파일 (`.eco`, `.tpl`)을 해석해 header와 value 파일로 나눠 저장."""
     if len(inputs) == 1 and inputs[0].is_dir():
         paths = [
             x
@@ -97,7 +99,7 @@ def encrypt(
     header: Optional[Path] = typer.Option(None, '--header', '-h', help=HELP.EH),
     output: Optional[Path] = typer.Option(None, '--output', '-o', help=HELP.EO),
 ):
-    """header와 value를 암호화해서 eco 파일로 변환"""
+    """header와 value를 암호화해 eco 파일로 변환."""
     if len(inputs) == 1 and inputs[0].is_dir():
         paths = list(inputs[0].glob(f'*{Eco2.VEXT}'))
     else:
