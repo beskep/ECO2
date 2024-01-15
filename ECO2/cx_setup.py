@@ -1,11 +1,23 @@
+import sysconfig
+from pathlib import Path
+
+import rtoml
 from cx_Freeze import Executable, setup
 
 if __name__ == '__main__':
-    excludes = ['email', 'http', 'pytest', 'tkinter', 'unittest']
+    pyprj = rtoml.load(Path(__file__).parents[1] / 'pyproject.toml')
+    project = pyprj['project']['name']
+    version = pyprj['project']['version']
+
+    platform = sysconfig.get_platform()
+    pyver = sysconfig.get_python_version()
+
     options = {
         'build_exe': {
+            'build_exe': f'build/{project}-{version}-{platform}-py{pyver}',
             'optimize': 1,
-            'excludes': excludes,
+            'excludes': ['email', 'http', 'pytest', 'tkinter', 'unittest'],
+            'include_files': 'bin',
         }
     }
 

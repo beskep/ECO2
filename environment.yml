@@ -8,9 +8,11 @@ dependencies:
   - rich
   - typer
   - cx_freeze
+  - pythonnet
+  - rtoml
   # dev
   - pytest
-  - coverage
+  - pytest-cov
   - pylint
   - mypy
   - ruff

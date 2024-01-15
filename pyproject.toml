@@ -1,6 +1,6 @@
 [project]
 name = 'ECO2'
-version = '0.1.3'
+version = '0.2.0'
 requires-python = '>=3.11'
 
 [tool.ruff]
@@ -33,10 +33,16 @@ disable = [
 ]
 
 [tool.mypy]
-disable_error_code = ['var-annotated', 'import']
+disable_error_code = ['import-untyped', 'import', 'var-annotated']
 check_untyped_defs = true
 warn_unused_ignores = true
 warn_unused_configs = true
 
 [tool.pytest.ini_options]
-addopts = '-v'
+addopts = ['-v', '--cov=./']
+
+[tool.coverage.run]
+omit = ['ECO2/__main__.py', 'ECO2/cx_setup.py']
+
+[tool.typos.default.extend-words]
+henc = 'henc'

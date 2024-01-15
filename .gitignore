@@ -139,8 +139,7 @@ cython_debug/
 
 # project
 .vscode/
-data/
 scripts/
-*.cs
 *.header
 *.xml
+*.dll

@@ -63,7 +63,7 @@ def decrypt(
         paths = [
             x
             for x in inputs[0].glob('*')
-            if x.is_file() and x.suffix.lower() in {'.eco', '.tpl'}
+            if x.is_file() and x.suffix.lower() in {'.eco', '.ecox', '.tpl', '.tplx'}
         ]
     else:
         paths = inputs
@@ -83,7 +83,10 @@ def decrypt(
 
         try:
             Eco2.decrypt(
-                path=path, header=header, value=value, write_header=write_header
+                path=path,
+                header=header,
+                value=value,
+                write_header=write_header,
             )
         except (ValueError, OSError) as e:
             logger.exception(e)

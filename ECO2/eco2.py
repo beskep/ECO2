@@ -1,10 +1,11 @@
 import contextlib
 from itertools import cycle
-from os import PathLike
 from pathlib import Path
 from typing import ClassVar, Literal
 
 from loguru import logger
+
+from ECO2 import minilzo
 
 
 class Eco2:
@@ -20,7 +21,7 @@ class Eco2:
     )
     KEY = (172, 41, 85, 66)
     DS = '</DS>'
-    DSR = '<DSR xmlns="http://tempuri.org/DSR.xsd">'
+    DSR = '<DSR xmlns="http://tempuri.org/DSR.xsd'
 
     HENC = 'EUC-KR'
     VENC = 'UTF-8'
@@ -54,7 +55,7 @@ class Eco2:
         return cls.decrypt_bytes(data)
 
     @classmethod
-    def header_length(cls):
+    def header_length(cls) -> int:
         return sum(x[0] for x in cls.HEADER)
 
     @classmethod
@@ -83,9 +84,11 @@ class Eco2:
         return path.read_text(encoding=cls.VENC).replace('\n', '\r\n')
 
     @classmethod
-    def _decrypt(cls, data: bytes, *, decrypt: bool):
+    def _decrypt(cls, data: bytes, *, decrypt: bool, decompress=False):
         if decrypt:
             data = cls.decrypt_bytes(data)
+        if decompress:
+            data = minilzo.decompress(data)
 
         hl = cls.header_length()
         header_bytes = data[:hl]
@@ -106,9 +109,9 @@ class Eco2:
     @classmethod
     def decrypt(
         cls,
-        path: str | PathLike,
-        header: str | PathLike | None = None,
-        value: str | PathLike | None = None,
+        path: str | Path,
+        header: str | Path | None = None,
+        value: str | Path | None = None,
         *,
         write_header=True,
     ):
@@ -116,12 +119,12 @@ class Eco2:
 
         Parameters
         ----------
-        path : str | PathLike
+        path : str | Path
             ECO2 저장 파일 (`.eco`, `.tpl`) 경로
-        header : str | PathLike | None, optional
+        header : str | Path | None, optional
             저장할 header 파일 경로.
             `None`이면 path의 확장자를 `.header`로 변경한 경로.
-        value : str | PathLike | None, optional
+        value : str | Path | None, optional
             저장할 value 파일 경로.
             `None`이면 path의 확장자를 `.xml`로 변경한 경로.
         write_header : bool, optional
@@ -136,12 +139,18 @@ class Eco2:
         logger.log(cls._loglvl('dst'), 'Value Path: "{}"', value)
 
         data = path.read_bytes()
-        decrypt = path.suffix.lower() == cls.EEXT
+        suffix = path.suffix.lower()
+        decrypt = suffix.startswith(cls.EEXT)
+        decompress = suffix.endswith('x')
 
         try:
-            hdata, vdata = cls._decrypt(data=data, decrypt=decrypt)
+            hdata, vdata = cls._decrypt(
+                data=data, decrypt=decrypt, decompress=decompress
+            )
         except ValueError:
-            hdata, vdata = cls._decrypt(data=data, decrypt=not decrypt)
+            hdata, vdata = cls._decrypt(
+                data=data, decrypt=not decrypt, decompress=decompress
+            )
 
         cls._print_header_info(hdata)
 
@@ -158,19 +167,19 @@ class Eco2:
     @classmethod
     def encrypt(
         cls,
-        header: str | PathLike,
-        value: str | PathLike,
-        path: str | PathLike | None = None,
+        header: str | Path,
+        value: str | Path,
+        path: str | Path | None = None,
     ):
         """`.eco` 파일 암호화.
 
         Parameters
         ----------
-        header : str | PathLike
+        header : str | Path
             Header 파일 경로 (`.header`)
-        value : str | PathLike
+        value : str | Path
             Value 파일 경로 (`.xml`)
-        path : str | PathLike | None, optional
+        path : str | Path | None, optional
             저장 경로. `None`이면 value의 확장자를 `.eco`로 변경한 경로.
         """
         header = Path(header)
