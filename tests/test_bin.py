@@ -4,7 +4,6 @@ from ECO2 import minilzo
 
 
 def test_load():
-    # pylint: disable=no-member
     assert minilzo.MiniLZO.TheAnswer() == 42  # noqa: PLR2004
 
 

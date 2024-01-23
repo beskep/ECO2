@@ -1,4 +1,4 @@
-import contextlib
+from collections.abc import Iterable
 from itertools import cycle
 from pathlib import Path
 from typing import ClassVar, Literal
@@ -40,11 +40,9 @@ class Eco2:
     @classmethod
     def _loglvl(cls, kind: Literal['header', 'src', 'dst']):
         if cls.verbose == cls.DEFAULT_VERBOSE:
-            lvl = cls._LOGLEVEL[kind]
-        else:
-            lvl = 'DEBUG' if cls.verbose < cls.DEFAULT_VERBOSE else 'INFO'
+            return cls._LOGLEVEL[kind]
 
-        return lvl
+        return 'DEBUG' if cls.verbose < cls.DEFAULT_VERBOSE else 'INFO'
 
     @classmethod
     def decrypt_bytes(cls, data: bytes):
@@ -59,18 +57,20 @@ class Eco2:
         return sum(x[0] for x in cls.HEADER)
 
     @classmethod
-    def _decode_header(cls, data: bytes):
-        value: bytes | str
+    def _decode_header(cls, data: bytes) -> Iterable[tuple[str, str | bytes]]:
+        v: bytes | str
         for length, name in cls.HEADER:
-            value, data = data[:length], data[length:]
+            b, data = data[:length], data[length:]
 
-            with contextlib.suppress(ValueError):
-                value = value.decode(cls.HENC)
+            try:
+                v = b.decode(cls.HENC).rstrip('\x00')
+            except ValueError:
+                v = b
 
-            yield name, value
+            yield name, v
 
     @classmethod
-    def _print_header_info(cls, header: bytes):
+    def _log_header(cls, header: bytes):
         lvl = cls._loglvl('header')
         for key, value in cls._decode_header(header):
             logger.log(lvl, '[Header] {:10s}: {}', key, value)
@@ -152,7 +152,7 @@ class Eco2:
                 data=data, decrypt=not decrypt, decompress=decompress
             )
 
-        cls._print_header_info(hdata)
+        cls._log_header(hdata)
 
         if write_header:
             header.write_bytes(hdata)
@@ -191,7 +191,7 @@ class Eco2:
         logger.log(cls._loglvl('dst'), 'Output Path: "{}"', path)
 
         hdata = header.read_bytes()
-        cls._print_header_info(hdata)
+        cls._log_header(hdata)
 
         vdata = cls._read_value(path=value).encode(cls.VENC)
         cls._encrypt(header=hdata, value=vdata, path=path)
