@@ -9,7 +9,6 @@ dependencies:
   - typer
   - cx_freeze
   - pythonnet
-  - rtoml
   # dev
   - pytest
   - pytest-cov

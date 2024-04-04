@@ -1,11 +1,9 @@
-from collections.abc import Iterable, Sequence
 from logging import LogRecord
-from typing import ClassVar, TypeVar
+from typing import ClassVar
 
+import rich
 from loguru import logger
-from rich.console import Console
 from rich.logging import RichHandler
-from rich.progress import track as _track
 from rich.theme import Theme
 
 
@@ -29,7 +27,8 @@ class _Handler(RichHandler):
         return super().emit(record)
 
 
-console = Console(theme=Theme({'logging.level.success': 'blue'}))
+console = rich.get_console()
+console.push_theme(Theme({'logging.level.success': 'bold blue'}))
 _handler = _Handler(console=console, markup=True, log_time_format='[%X]')
 
 
@@ -56,22 +55,3 @@ def set_logger(level: int | str = 20):
     except ValueError:
         # 빈 칸 표시하는 'BLANK' level 새로 등록
         logger.level(name='BLANK', no=_Handler.BLANK_NO)
-
-
-_T = TypeVar('_T')
-
-
-def track(
-    sequence: Sequence[_T] | Iterable[_T],
-    description='Working...',
-    total: float | None = None,
-    **kwargs,
-):
-    """Track progress on console by iterating over a sequence."""
-    return _track(
-        sequence=sequence,
-        description=description,
-        total=total,
-        console=console,
-        **kwargs,
-    )

@@ -5,9 +5,11 @@ from typing import Optional
 
 import typer
 from loguru import logger
+from rich.progress import track
 
-from ECO2.eco2 import Eco2
-from ECO2.utils import set_logger, track
+from eco.eco2 import Eco2
+from eco.minilzo import MiniLzoImportError
+from eco.utils import set_logger
 
 _debug = typer.Option(False, '--debug', '-d', help='Show debug message')  # noqa: FBT003
 _verbose = typer.Option(2, '-v', count=True, help='Verbosity (default: `-vv`)')
@@ -74,10 +76,8 @@ def decrypt(
 
     output = Path(output) if output else None
 
-    if len(paths) > 1:
-        paths = track(paths, description='Decrypting...')
-
-    for path in paths:
+    it = track(paths, description='Decrypting...') if len(paths) > 1 else paths
+    for path in it:
         header = output / f'{path.stem}{Eco2.HEXT}' if output else None
         value = output / f'{path.stem}{Eco2.VEXT}' if output else None
 
@@ -88,6 +88,8 @@ def decrypt(
                 value=value,
                 write_header=write_header,
             )
+        except MiniLzoImportError:
+            pass
         except (ValueError, OSError) as e:
             logger.exception(e)
 
@@ -115,10 +117,8 @@ def encrypt(
     output = Path(output) if output else None
     header = Path(header) if header else None
 
-    if len(paths) > 1:
-        paths = track(paths, description='Encrypting...')
-
-    for path in paths:
+    it = track(paths, description='Encrypting...') if len(paths) > 1 else paths
+    for path in it:
         hp = header if header else path.with_suffix(Eco2.HEXT)
         if output:
             op = output / f'{path.stem}{Eco2.EEXT}'
@@ -127,6 +127,8 @@ def encrypt(
 
         try:
             Eco2.encrypt(header=hp, value=path, path=op)
+        except MiniLzoImportError:
+            pass
         except (ValueError, OSError) as e:
             logger.exception(e)
 

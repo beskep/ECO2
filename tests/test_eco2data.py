@@ -1,10 +1,10 @@
 from pathlib import Path
 
 import pytest
-from lxml.etree import _Element  # pylint: disable=no-name-in-module
+from lxml.etree import _Element  # pylint: disable=no-name-in-module  # noqa: PLC2701
 
-from ECO2.eco2 import Eco2
-from ECO2.eco2data import Eco2Data
+from eco.eco2 import Eco2
+from eco.eco2data import Eco2Data
 from tests.data import data_dir, files
 
 

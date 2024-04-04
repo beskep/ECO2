@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from ECO2.cli import app
-from ECO2.eco2 import Eco2
+from eco.cli import app
+from eco.eco2 import Eco2
 from tests.data import data_dir, files
 
 runner = CliRunner()

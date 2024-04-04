@@ -1,11 +1,12 @@
 import sysconfig
 from pathlib import Path
 
-import rtoml
+import tomli
 from cx_Freeze import Executable, setup
 
 if __name__ == '__main__':
-    pyprj = rtoml.load(Path(__file__).parents[1] / 'pyproject.toml')
+    path = Path(__file__).parents[1] / 'pyproject.toml'
+    pyprj = tomli.loads(path.read_text())
     project = pyprj['project']['name']
     version = pyprj['project']['version']
 
@@ -22,7 +23,7 @@ if __name__ == '__main__':
     }
 
     executables = [
-        Executable(script=r'ECO2\cli.py', target_name='ECO2'),
+        Executable(script=r'eco\cli.py', target_name='ECO'),
     ]
 
     setup(

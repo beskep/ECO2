@@ -6,7 +6,7 @@ from shutil import copy2
 
 import pytest
 
-from ECO2.eco2 import Eco2
+from eco.eco2 import Eco2
 from tests.data import data_dir, files
 
 

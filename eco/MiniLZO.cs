@@ -1,100 +1,36 @@
-﻿using System.Diagnostics;
-
-// .NET 7.0
+﻿using System;
+using System.Diagnostics;
 
 namespace MiniLZO
 {
-    public class MiniLZO
+    // ECO2_2020V2/Utility/MiniLZO
+    public static class MiniLZO
     {
-        public static int TheAnswer()
-        {
-            return 42;
-        }
-
-        public static readonly bool IsLittleEndian = true;
-
-        public unsafe static int ToInt32(byte[] value, int startIndex)
-        {
-            if (value == null)
-            {
-                throw new Exception();
-            }
-            if ((uint)startIndex >= value.Length)
-            {
-                throw new Exception();
-            }
-            if (startIndex > value.Length - 4)
-            {
-                throw new Exception();
-            }
-            fixed (byte* ptr = &value[startIndex])
-            {
-                if (startIndex % 4 == 0)
-                {
-                    return *(int*)ptr;
-                }
-                if (IsLittleEndian)
-                {
-                    return *ptr | (ptr[1] << 8) | (ptr[2] << 16) | (ptr[3] << 24);
-                }
-                return (*ptr << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3];
-            }
-        }
-
-        public unsafe static byte[] GetBytes(int value)
-        {
-            byte[] array = new byte[4];
-            fixed (byte* ptr = array)
-            {
-                *(int*)ptr = value;
-            }
-            return array;
-        }
-
         private const uint m_a = 8u;
+
         private const uint b = 33u;
+
         private const uint c = 9u;
+
         private const byte d = 32;
+
         private const byte e = 16;
+
         private const uint f = 1024u;
+
         private const uint g = 2048u;
+
         private const uint h = 16384u;
+
         private const uint i = 49151u;
+
         private const byte j = 14;
+
         private const uint k = 16383u;
+
         private const uint l = 65539u;
 
-        private unsafe static uint a(byte* A_0)
-        {
-            return a(a(33u, a(A_0, 5, 5, 6)) >> 5, 0);
-        }
-
-        private static uint a(uint A_0)
-        {
-            return (A_0 & 0x7FFu) ^ 0x201Fu;
-        }
-
-        private static uint a(uint A_0, byte A_1)
-        {
-            return (A_0 & (uint)(16383 >>> (int)A_1)) << (int)A_1;
-        }
-
-        private static uint a(uint A_0, uint A_1)
-        {
-            return A_0 * A_1;
-        }
-
-        private unsafe static uint a(byte* A_0, byte A_1, byte A_2)
-        {
-            return (uint)((((A_0[2] << (int)A_2) ^ A_0[1]) << (int)A_1) ^ *A_0);
-        }
-
-        private unsafe static uint a(byte* A_0, byte A_1, byte A_2, byte A_3)
-        {
-            return (a(A_0 + 1, A_2, A_3) << (int)A_1) ^ *A_0;
-        }
-
-        public unsafe static void Compress(byte[] src, out byte[] dst)
+        public static unsafe void Compress(byte[] src, out byte[] dst)
         {
             uint num = (uint)(src.Length + src.Length / 16 + 64 + 3);
             dst = new byte[num];
@@ -122,11 +58,14 @@ namespace MiniLZO
                             bool flag2 = false;
                             while (true)
                             {
-                                bool flag3 = true;
                                 uint num3 = 0u;
                                 uint num4 = a(ptr7);
                                 byte* ptr10 = ptr7 - (ptr7 - ptr2[num4]);
-                                if (ptr10 < ptr3 || (num3 = (uint)(ptr7 - ptr10)) == 0 || num3 > 49151)
+                                if (
+                                    ptr10 < ptr3
+                                    || (num3 = (uint)(ptr7 - ptr10)) == 0
+                                    || num3 > 49151
+                                )
                                 {
                                     flag = true;
                                 }
@@ -134,7 +73,11 @@ namespace MiniLZO
                                 {
                                     num4 = a(num4);
                                     ptr10 = ptr7 - (ptr7 - ptr2[num4]);
-                                    if (ptr10 < ptr3 || (num3 = (uint)(ptr7 - ptr10)) == 0 || num3 > 49151)
+                                    if (
+                                        ptr10 < ptr3
+                                        || (num3 = (uint)(ptr7 - ptr10)) == 0
+                                        || num3 > 49151
+                                    )
                                     {
                                         flag = true;
                                     }
@@ -143,7 +86,11 @@ namespace MiniLZO
                                         flag = true;
                                     }
                                 }
-                                if (!flag && *(ushort*)ptr10 == *(ushort*)ptr7 && ptr10[2] == ptr7[2])
+                                if (
+                                    !flag
+                                    && *(ushort*)ptr10 == *(ushort*)ptr7
+                                    && ptr10[2] == ptr7[2]
+                                )
                                 {
                                     flag2 = true;
                                 }
@@ -169,12 +116,12 @@ namespace MiniLZO
                                         case 1u:
                                         case 2u:
                                         case 3u:
-                                            {
-                                                Debug.Assert(ptr9 - 2 > ptr8);
-                                                byte* num7 = ptr9 + -2;
-                                                *num7 |= (byte)num5;
-                                                break;
-                                            }
+                                        {
+                                            Debug.Assert(ptr9 - 2 > ptr8);
+                                            byte* num7 = ptr9 + -2;
+                                            *num7 |= (byte)num5;
+                                            break;
+                                        }
                                         case 4u:
                                         case 5u:
                                         case 6u:
@@ -193,28 +140,34 @@ namespace MiniLZO
                                             *(ptr9++) = (byte)(num5 - 3);
                                             break;
                                         default:
+                                        {
+                                            uint num6 = num5 - 18;
+                                            *(ptr9++) = 0;
+                                            while (num6 > 255)
                                             {
-                                                uint num6 = num5 - 18;
+                                                num6 -= 255;
                                                 *(ptr9++) = 0;
-                                                while (num6 > 255)
-                                                {
-                                                    num6 -= 255;
-                                                    *(ptr9++) = 0;
-                                                }
-                                                Debug.Assert(num6 != 0);
-                                                *(ptr9++) = (byte)num6;
-                                                break;
                                             }
+                                            Debug.Assert(num6 != 0);
+                                            *(ptr9++) = (byte)num6;
+                                            break;
+                                        }
                                     }
                                     do
                                     {
                                         *(ptr9++) = *(ptr6++);
-                                    }
-                                    while (--num5 != 0);
+                                    } while (--num5 != 0);
                                 }
                                 Debug.Assert(ptr6 == ptr7);
                                 ptr7 += 3;
-                                if (ptr10[3] != *(ptr7++) || ptr10[4] != *(ptr7++) || ptr10[5] != *(ptr7++) || ptr10[6] != *(ptr7++) || ptr10[7] != *(ptr7++) || ptr10[8] != *(ptr7++))
+                                if (
+                                    ptr10[3] != *(ptr7++)
+                                    || ptr10[4] != *(ptr7++)
+                                    || ptr10[5] != *(ptr7++)
+                                    || ptr10[6] != *(ptr7++)
+                                    || ptr10[7] != *(ptr7++)
+                                    || ptr10[8] != *(ptr7++)
+                                )
                                 {
                                     ptr7--;
                                     uint num8 = (uint)(ptr7 - ptr6);
@@ -238,14 +191,20 @@ namespace MiniLZO
                                         num3 -= 16384;
                                         Debug.Assert(num3 != 0);
                                         Debug.Assert(num3 <= 32767);
-                                        *(ptr9++) = (byte)(0x10u | ((num3 & 0x4000) >> 11) | (num8 - 2));
+                                        *(ptr9++) = (byte)(
+                                            0x10u | ((num3 & 0x4000) >> 11) | (num8 - 2)
+                                        );
                                         *(ptr9++) = (byte)((num3 & 0x3F) << 2);
                                         *(ptr9++) = (byte)(num3 >> 6);
                                     }
                                 }
                                 else
                                 {
-                                    for (byte* ptr11 = ptr10 + 8u + 1; ptr7 < ptr4 && *ptr11 == *ptr7; ptr7++)
+                                    for (
+                                        byte* ptr11 = ptr10 + 8u + 1;
+                                        ptr7 < ptr4 && *ptr11 == *ptr7;
+                                        ptr7++
+                                    )
                                     {
                                         ptr11++;
                                     }
@@ -278,7 +237,9 @@ namespace MiniLZO
                                         Debug.Assert(num3 <= 32767);
                                         if (num8 <= 9)
                                         {
-                                            *(ptr9++) = (byte)(0x10u | ((num3 & 0x4000) >> 11) | (num8 - 2));
+                                            *(ptr9++) = (byte)(
+                                                0x10u | ((num3 & 0x4000) >> 11) | (num8 - 2)
+                                            );
                                         }
                                         else
                                         {
@@ -344,25 +305,24 @@ namespace MiniLZO
                             dst[num++] = (byte)(num2 - 3);
                             break;
                         default:
+                        {
+                            uint num6 = num2 - 18;
+                            dst[num++] = 0;
+                            while (num6 > 255)
                             {
-                                uint num6 = num2 - 18;
+                                num6 -= 255;
                                 dst[num++] = 0;
-                                while (num6 > 255)
-                                {
-                                    num6 -= 255;
-                                    dst[num++] = 0;
-                                }
-                                Debug.Assert(num6 != 0);
-                                dst[num++] = (byte)num6;
-                                break;
                             }
+                            Debug.Assert(num6 != 0);
+                            dst[num++] = (byte)num6;
+                            break;
+                        }
                     }
                 }
                 do
                 {
                     dst[num++] = src[num9++];
-                }
-                while (--num2 != 0);
+                } while (--num2 != 0);
             }
             dst[num++] = 17;
             dst[num++] = 0;
@@ -375,7 +335,7 @@ namespace MiniLZO
             }
         }
 
-        public unsafe static void Decompress(byte[] src, byte[] dst)
+        public static unsafe void Decompress(byte[] src, byte[] dst)
         {
             uint num = 0u;
             fixed (byte* ptr2 = src)
@@ -414,8 +374,7 @@ namespace MiniLZO
                             do
                             {
                                 *(ptr7++) = *(ptr6++);
-                            }
-                            while (--num != 0);
+                            } while (--num != 0);
                             flag5 = true;
                         }
                     }
@@ -479,15 +438,13 @@ namespace MiniLZO
                                                 ptr6++;
                                             }
                                             num -= 4;
-                                        }
-                                        while (num >= 4);
+                                        } while (num >= 4);
                                         if (num != 0)
                                         {
                                             do
                                             {
                                                 *(ptr7++) = *(ptr6++);
-                                            }
-                                            while (--num != 0);
+                                            } while (--num != 0);
                                         }
                                     }
                                     else
@@ -495,8 +452,7 @@ namespace MiniLZO
                                         do
                                         {
                                             *(ptr7++) = *(ptr6++);
-                                        }
-                                        while (--num != 0);
+                                        } while (--num != 0);
                                     }
                                 }
                             }
@@ -715,15 +671,13 @@ namespace MiniLZO
                                         ptr++;
                                     }
                                     num -= 4;
-                                }
-                                while (num >= 4);
+                                } while (num >= 4);
                                 if (num != 0)
                                 {
                                     do
                                     {
                                         *(ptr7++) = *(ptr++);
-                                    }
-                                    while (--num != 0);
+                                    } while (--num != 0);
                                 }
                             }
                             else if (!flag6 && !flag3)
@@ -734,8 +688,7 @@ namespace MiniLZO
                                 do
                                 {
                                     *(ptr7++) = *(ptr++);
-                                }
-                                while (--num != 0);
+                                } while (--num != 0);
                             }
                             if (!flag6 && !flag2)
                             {
@@ -771,8 +724,7 @@ namespace MiniLZO
                                 }
                             }
                             num = *(ptr6++);
-                        }
-                        while (!flag6 && ptr6 < ptr3);
+                        } while (!flag6 && ptr6 < ptr3);
                     }
                     if (!flag6)
                     {
@@ -791,9 +743,39 @@ namespace MiniLZO
             }
         }
 
+        private static unsafe uint a(byte* A_0)
+        {
+            return a(a(33u, a(A_0, 5, 5, 6)) >> 5, 0);
+        }
+
+        private static uint a(uint A_0)
+        {
+            return (A_0 & 0x7FFu) ^ 0x201Fu;
+        }
+
+        private static uint a(uint A_0, byte A_1)
+        {
+            return (A_0 & (uint)(16383 >>> (int)A_1)) << (int)A_1;
+        }
+
+        private static uint a(uint A_0, uint A_1)
+        {
+            return A_0 * A_1;
+        }
+
+        private static unsafe uint a(byte* A_0, byte A_1, byte A_2)
+        {
+            return (uint)((((A_0[2] << (int)A_2) ^ A_0[1]) << (int)A_1) ^ *A_0);
+        }
+
+        private static unsafe uint a(byte* A_0, byte A_1, byte A_2, byte A_3)
+        {
+            return (a(A_0 + 1, A_2, A_3) << (int)A_1) ^ *A_0;
+        }
+
         public static byte[] DecompressBytes(byte[] array)
         {
-            int num = ToInt32(array, 0);
+            int num = BitConverter.ToInt32(array, 0);
             byte[] array2 = new byte[array.Length - 4 - 1 + 1];
             Array.Copy(array, 4, array2, 0, array2.Length);
             byte[] array3 = new byte[num - 1 + 1];
@@ -814,11 +796,19 @@ namespace MiniLZO
             int num = dst.Length;
             Array.Clear(array, 0, array.Length);
             Array.Resize(ref array, dst.Length + 4);
-            byte[] bytes6 = GetBytes(value3);
+            byte[] bytes6 = BitConverter.GetBytes(value3);
             Array.Copy(bytes6, array, bytes6.Length);
             Array.Copy(dst, 0, array, 4, dst.Length);
 
             return array;
         }
+
+        public static int TheAnswer()
+        {
+            return 42;
+        }
+
+        // dotnet new console --framework net8.0
+        // dotnet build --configuration Release
     }
 }

@@ -5,7 +5,16 @@ from typing import ClassVar, Literal
 
 from loguru import logger
 
-from ECO2 import minilzo
+from eco import minilzo
+
+try:
+    minilzo.load_dll()
+except FileNotFoundError as e:
+    logger.warning('`{}`를 찾을 수 없음.', e)
+    logger.warning('`.ecox`, `.tplx` 파일을 해석할 수 없습니다.')
+    MINILZO = False
+else:
+    MINILZO = True
 
 
 class Eco2:
@@ -115,7 +124,7 @@ class Eco2:
         *,
         write_header=True,
     ):
-        """`.eco`, `.tpl` 파일 복호화.
+        """`.eco`, `.ecox`, `.tpl`, `.tplx` 파일 복호화.
 
         Parameters
         ----------
@@ -142,6 +151,12 @@ class Eco2:
         suffix = path.suffix.lower()
         decrypt = suffix.startswith(cls.EEXT)
         decompress = suffix.endswith('x')
+
+        if decompress and not MINILZO:
+            logger.error(
+                'MiniLZO.dll을 불러올 수 없습니다. '
+                '`ecox`, `tplx` 파일을 해석할 수 없습니다.'
+            )
 
         try:
             hdata, vdata = cls._decrypt(
