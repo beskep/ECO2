@@ -1,5 +1,6 @@
 # ruff: noqa: B008 UP007
 
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -23,28 +24,41 @@ def callback(*, debug: bool = _debug, verbose: int = _verbose):
 app = typer.Typer(callback=callback)
 
 
+class SFType(Enum):
+    HEADER = 'header'
+    SF00 = '00'
+    SF01 = '01'
+    SF10 = '10'
+    ALL = 'all'
+
+
 class HELP:
     DI = (
-        '해석할 ECO2 저장 파일의 경로. 폴더를 지정하는 경우 해당 폴더 내 모든 저장'
-        ' 파일을 대상으로 함.'
+        '해석할 ECO2 저장 파일의 경로. '
+        '폴더를 지정하는 경우 해당 폴더 내 모든 저장 파일 대상으로 함.'
     )
     DO = (
         '저장할 파일 경로. 대상 경로 아래 파일명이 원본과 같은 header'
-        ' (`.header`)와 value (`.xml`) 파일을 저장함'
+        ' (`.header`)와 value (`.xml`) 파일을 저장.'
     )
-    DH = 'Header 파일 저장 여부'
+    DH = 'Header 파일 저장 여부.'
 
     EI = (
-        '해석할 value 파일의 경로. 폴더를 지정하는 경우 해당 폴더 내 모든'
-        ' xml 파일을 대상으로 함.'
+        '해석할 value 파일의 경로. '
+        '폴더를 지정하는 경우 해당 폴더 내 모든 xml 파일 대상.'
     )
     EH = (
-        'header 파일 경로. 미지정 시 value 파일과 동일한 경로·이름에 확장자가'
-        ' `.header`인 파일로 추정.'
+        'header 파일 경로. '
+        '미지정 시 value 파일과 동일한 경로·이름에 확장자가 `.header`인 파일로 추정.'
     )
     EO = (
-        '저장할 파일의 경로. 대상 경로 아래 파일명이 value 파일과 같은 '
-        '`.eco` 파일을 저장함'
+        '저장할 파일의 경로. '
+        '대상 경로 아래 파일명이 value 파일과 같은 `.eco` 파일을 저장.'
+    )
+    ES = (
+        '저장할 eco 파일 header의 SFType 값. '
+        '"header"면 header 파일의 값을 변경하지 않음. '
+        '"all"이면 "00", "01", "10"으로 변경한 eco 파일을 각각 저장.'
     )
 
 
@@ -88,8 +102,8 @@ def decrypt(
                 value=value,
                 write_header=write_header,
             )
-        except MiniLzoImportError:
-            pass
+        except MiniLzoImportError as e:
+            logger.error(e.__class__.__name__)
         except (ValueError, OSError) as e:
             logger.exception(e)
 
@@ -103,6 +117,7 @@ def encrypt(
     inputs: list[Path] = typer.Argument(..., show_default=False, help=HELP.EI),
     header: Optional[Path] = typer.Option(None, '--header', '-h', help=HELP.EH),
     output: Optional[Path] = typer.Option(None, '--output', '-o', help=HELP.EO),
+    sftype: SFType = typer.Option(SFType.HEADER.value, '--sf', '-s', help=HELP.ES),
 ):
     """header와 value를 암호화해 eco 파일로 변환."""
     if len(inputs) == 1 and inputs[0].is_dir():
@@ -116,19 +131,18 @@ def encrypt(
 
     output = Path(output) if output else None
     header = Path(header) if header else None
+    sf = None if sftype is SFType.HEADER else sftype.value
 
     it = track(paths, description='Encrypting...') if len(paths) > 1 else paths
     for path in it:
-        hp = header if header else path.with_suffix(Eco2.HEXT)
+        hp = header or path.with_suffix(Eco2.HEXT)
         if output:
             op = output / f'{path.stem}{Eco2.EEXT}'
         else:
             op = path.with_suffix(Eco2.EEXT)
 
         try:
-            Eco2.encrypt(header=hp, value=path, path=op)
-        except MiniLzoImportError:
-            pass
+            Eco2.encrypt(header=hp, value=path, path=op, sftype=sf)
         except (ValueError, OSError) as e:
             logger.exception(e)
 

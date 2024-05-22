@@ -19,13 +19,16 @@ else:
 
 class Eco2:
     HEADER = (
-        (2, 'SF type'),
-        (10, 'UI version'),
-        (10, 'LG version'),
+        # SFType: Password가 있으면 b'01',
+        # UserAuthType가 ADMIN, BOTH, BOTH1, BOTH2 면 b'00',
+        # 이외 b'10'으로 추정
+        (2, 'SFType'),
+        (10, 'UIVersion'),
+        (10, 'LGVersion'),
         (100, 'Name'),
         (256, 'Desc'),
-        (19, 'Make time'),
-        (19, 'Edit time'),
+        (19, 'MakeTime'),
+        (19, 'EditTime'),
         (8, 'Password'),
     )
     KEY = (172, 41, 85, 66)
@@ -82,7 +85,7 @@ class Eco2:
     def _log_header(cls, header: bytes):
         lvl = cls._loglvl('header')
         for key, value in cls._decode_header(header):
-            logger.log(lvl, '[Header] {:10s}: {}', key, value)
+            logger.log(lvl, '[Header] {:9s} = {}', key, value)
 
     @classmethod
     def _write_value(cls, path: Path, value: str):
@@ -185,6 +188,7 @@ class Eco2:
         header: str | Path,
         value: str | Path,
         path: str | Path | None = None,
+        sftype: Literal['00', '01', '10', 'all'] | None = None,
     ):
         """`.eco` 파일 암호화.
 
@@ -196,6 +200,10 @@ class Eco2:
             Value 파일 경로 (`.xml`)
         path : str | Path | None, optional
             저장 경로. `None`이면 value의 확장자를 `.eco`로 변경한 경로.
+        sftype : Literal['00', '01', '10', 'all'] | None, optional
+            Header에 저장되는 SFType.
+            `None`이면 header 파일을 수정하지 않음.
+            `'all'`이면 모든 SFType (`'00'`, `'01'`, `'10'`)의 파일 저장.
         """
         header = Path(header)
         value = Path(value)
@@ -206,7 +214,12 @@ class Eco2:
         logger.log(cls._loglvl('dst'), 'Output Path: "{}"', path)
 
         hdata = header.read_bytes()
-        cls._log_header(hdata)
 
         vdata = cls._read_value(path=value).encode(cls.VENC)
-        cls._encrypt(header=hdata, value=vdata, path=path)
+
+        for sf in [sftype] if sftype != 'all' else ['00', '01', '10']:
+            h = hdata if sf is None else sf.encode() + hdata[2:]
+            p = path if sftype != 'all' else path.with_stem(f'{path.stem}_SF{sf}')
+
+            cls._log_header(h)
+            cls._encrypt(header=h, value=vdata, path=p)
