@@ -1,7 +1,7 @@
 [project]
 name = 'ECO2'
-version = '0.2.1'
-requires-python = '>=3.11'
+version = '0.3.0'
+requires-python = '>=3.12'
 
 [tool.ruff]
 preview = true
@@ -20,13 +20,13 @@ ignore = [
     'COM',    # flake8-commas
     'CPY',    # flake8-copyright
     'D1',     # pydocstyle: D1*
+    'E1',     # pycodestyle: E1*
+    'E2',     # pycodestyle: E2*
     'FIX',    # flake8-fixme
     'INP',    # flake8-no-pep420
     'ISC001', # flake8-implicit-str-concat: single-line-implicit-string-concatenation
     'Q',      # flake8-quotes
-    'S',      # flake8-bandit
-    'SIM105', # flake8-simplify: suppressible-exception
-    'T20',    # flake8-print
+    'S101',   # flake8-bandit: assert
     'TD',     # flake8-todos
 ]
 
@@ -36,7 +36,7 @@ convention = 'numpy'
 [tool.pylint.messages_control]
 confidence = ['HIGH', 'CONTROL_FLOW', 'INFERENCE']
 enable = ['bad-inline-option', 'useless-suppression']
-disable = ['R', 'C', 'fixme']
+disable = ['R', 'C', 'c-extension-no-member', 'fixme']
 
 [tool.mypy]
 disable_error_code = ['import-untyped', 'import', 'var-annotated']

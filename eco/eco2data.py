@@ -1,36 +1,41 @@
-# pylint: disable=c-extension-no-member
-# ruff: noqa: S314, S320
+# ruff: noqa: S320
 
-import re
 from pathlib import Path
-from typing import ClassVar
-from xml.etree import ElementTree as ET  # noqa: N817
 
 from lxml import etree
+from lxml.etree import _Element, _ElementTree
 
 
-def get_namespace(element: ET.Element):
-    m = re.match(r'\{(.*)\}', element.tag)
-    return m.group(1) if m else ''
+class Eco2Xml:
+    """Decrypt한 ECO2 데이터 (xml) 해석."""
 
+    DS = 'DS'
+    DSR = 'DSR'
 
-class Eco2Data:
-    """Decrypt한 ECO2 데이터 (xml) 해석 예시."""
+    DS_URI = 'http://tempuri.org/DS.xsd'
+    DSR_URI = 'http://tempuri.org/DSR.xsd'
 
-    DS = 'http://tempuri.org/DS.xsd'
-    DSR = 'http://tempuri.org/DSR.xsd'
-    DSRT = f'<DSR xmlns="{DSR}">'
+    XMLNS = 'xmlns'
+    DSRT = f'<DSR {XMLNS}="{DSR_URI}">'
 
-    # namespace
-    NSDS: ClassVar[dict[str, str]] = {'': DS}
-    NSDSR: ClassVar[dict[str, str]] = {'': DSR}
+    def __init__(self, path: str | Path) -> None:
+        self._path = Path(path)
+        self._ds, self._dsr = self.read_xml(self._path)
 
-    def __init__(self, xml: str | Path) -> None:
-        self._xml = Path(xml)
-        self._ds, self._dsr = self.read_xml(self._xml)
+    @property
+    def path(self) -> Path:
+        return self._path
+
+    @property
+    def ds(self) -> _Element:
+        return self._ds
+
+    @property
+    def dsr(self) -> _Element | None:
+        return self._dsr
 
     @classmethod
-    def read_xml(cls, path: Path):
+    def read_xml(cls, path: Path) -> tuple[_Element, _Element | None]:
         text = path.read_text('UTF-8')
         parser = etree.XMLParser(recover=True)
 
@@ -42,53 +47,55 @@ class Eco2Data:
             tdsr = text[i:]
 
         # 입력 변수 xml
-        ds = etree.fromstring(tds, parser=parser)
-        assert get_namespace(ds) == cls.DS
+        ds = etree.fromstring(
+            tds.replace(cls.XMLNS, f'{cls.XMLNS}:{cls.DS}'),
+            parser=parser,
+        )
 
+        # 결과 xml
         if tdsr is None:
             dsr = None
         else:
-            # 결과 xml
-            dsr = etree.fromstring(tdsr, parser=parser)
-            assert get_namespace(dsr) == cls.DSR
+            dsr = etree.fromstring(
+                tdsr.replace(cls.XMLNS, f'{cls.XMLNS}:{cls.DSR}'),
+                parser=parser,
+            )
 
         return (ds, dsr)
 
-    @property
-    def xml(self) -> Path:
-        return self._xml
-
-    @property
-    def ds(self) -> ET.ElementTree:
-        return self._ds
-
-    @property
-    def dsr(self) -> ET.ElementTree | None:
-        return self._dsr
-
     @classmethod
-    def iterfind(cls, element: ET.Element, path: str):
-        yield from element.iterfind(path, namespaces=cls.NSDS)
-        yield from element.iterfind(path, namespaces=cls.NSDSR)
+    def _tostring(
+        cls,
+        obj: _Element | _ElementTree,
+        /,
+        remove_prefix: str | None = None,
+        **kwargs,
+    ):
+        s = etree.tostring(obj, encoding='unicode', **kwargs)
 
-    def findall(self, path: str):
-        yield from self.ds.iterfind(path, namespaces=self.NSDS)
+        if remove_prefix:
+            s = s.replace(f'{cls.XMLNS}:{remove_prefix}', cls.XMLNS)
+
+        return s
+
+    def tostring(self) -> str:
+        s = self._tostring(self.ds, remove_prefix=self.DS)
 
         if self.dsr is not None:
-            yield from self.dsr.iterfind(path, namespaces=self.NSDSR)
+            dsr = self._tostring(self.dsr, remove_prefix=self.DSR)
+            s = f'{s}\n{dsr}'
 
-    @classmethod
-    def find(cls, element: ET.Element, path: str):
-        return next(cls.iterfind(element=element, path=path), None)
+        return s
 
-    @classmethod
-    def findtext(cls, element: ET.Element, path: str):
-        e = cls.find(element=element, path=path)
-        return None if e is None else e.text
+    def write(self, path: str | Path, encoding='UTF-8'):
+        Path(path).write_text(self.tostring(), encoding=encoding)
 
-    @classmethod
-    def monthly_data(cls, element: ET.Element):
-        return (
-            float(cls.findtext(element=element, path=f'M{x:02d}') or 'nan')
-            for x in range(1, 13)
-        )
+    def iterfind(self, path: str, namespaces=None):
+        yield from self.ds.iterfind(path, namespaces=namespaces)
+
+        if self.dsr is not None:
+            yield from self.dsr.iterfind(path, namespaces=namespaces)
+
+
+etree.register_namespace(Eco2Xml.DS, Eco2Xml.DS_URI)
+etree.register_namespace(Eco2Xml.DSR, Eco2Xml.DSR_URI)

@@ -141,7 +141,6 @@ cython_debug/
 .vscode/
 bin/
 obj/
-scripts/
 .vs/
 *.header
 *.xml
