@@ -1,6 +1,6 @@
 [project]
 name = 'ECO2'
-version = '0.3.0'
+version = '0.4.0'
 requires-python = '>=3.12'
 
 [tool.ruff]
@@ -36,7 +36,7 @@ convention = 'numpy'
 [tool.pylint.messages_control]
 confidence = ['HIGH', 'CONTROL_FLOW', 'INFERENCE']
 enable = ['bad-inline-option', 'useless-suppression']
-disable = ['R', 'C', 'c-extension-no-member', 'fixme']
+disable = ['R', 'C', 'c-extension-no-member']
 
 [tool.mypy]
 disable_error_code = ['import-untyped', 'import', 'var-annotated']

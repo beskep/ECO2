@@ -5,48 +5,66 @@ from pathlib import Path
 from shutil import copy2
 
 import pytest
+from lxml.etree import _Element  # noqa: PLC2701
 
 from eco.eco2 import Eco2
+from eco.eco2xml import Eco2Xml
 from tests.data import data_dir, files
 
 
 @pytest.mark.parametrize('file', files)
 def test_eco2(file, tmp_path: Path):
-    data_path = tmp_path / file
-    copy2(src=data_dir / file, dst=data_path)
-
-    header_path = data_path.with_suffix(Eco2.HEXT)
-    value_path = data_path.with_suffix(Eco2.VEXT)
-    encrypted_path = tmp_path / f'{data_path.stem}-encrypted{Eco2.EEXT}'
-
-    header_path.unlink(missing_ok=True)
-    value_path.unlink(missing_ok=True)
-    encrypted_path.unlink(missing_ok=True)
-
-    suffix = data_path.suffix.lower()
+    path = tmp_path / file
+    suffix = path.suffix.lower()
     is_eco = suffix == Eco2.EEXT
 
-    Eco2.decrypt(path=data_path)
+    copy2(src=data_dir / file, dst=path)
 
-    header, value = Eco2._decrypt(data_path.read_bytes(), decrypt=is_eco)
-    saved_header = header_path.read_bytes()
-    saved_value = Eco2._read_value(value_path)
+    header = path.with_suffix(Eco2.HEXT)
+    xml = path.with_suffix(Eco2.XEXT)
+    encrypted = tmp_path / f'{path.stem}-encrypted{Eco2.EEXT}'
+
+    header.unlink(missing_ok=True)
+    xml.unlink(missing_ok=True)
+    encrypted.unlink(missing_ok=True)
+
+    Eco2.decrypt(src=path)
+
+    header_data, xml_data = Eco2._decrypt(path.read_bytes(), decrypt=is_eco)
 
     if not suffix.endswith('x'):
-        assert header == saved_header
+        assert header_data == header.read_bytes()
 
     if is_eco:
-        # tpl 파일의 경우 결과부 (<DSR>)이 제거되어 value가 달라질 수 있음
-        assert hash(value) == hash(saved_value)
+        # tpl 파일의 경우 결과부 (<DSR>)이 제거되어 xml가 달라질 수 있음
+        assert hash(xml_data) == hash(Eco2._read_xml(xml))
 
-    Eco2.encrypt(header=header_path, value=value_path, path=encrypted_path)
-
-    eco2 = data_path.read_bytes()
-    encrypted = encrypted_path.read_bytes()
+    Eco2.encrypt(header=header, xml=xml, dst=encrypted)
 
     if is_eco:
-        assert hash(eco2) == hash(encrypted)
+        data = path.read_bytes()
+        assert hash(data) == hash(encrypted.read_bytes())
 
-    header_path.unlink(missing_ok=True)
-    value_path.unlink(missing_ok=True)
-    encrypted_path.unlink(missing_ok=True)
+    header.unlink(missing_ok=True)
+    xml.unlink(missing_ok=True)
+    encrypted.unlink(missing_ok=True)
+
+
+@pytest.mark.parametrize('file', files)
+def test_eco2xml(file: Path):
+    path = data_dir / file
+    if not (xml := path.with_suffix(Eco2.XEXT)).exists():
+        Eco2.decrypt(path, write_header=False)
+
+    eco = Eco2Xml(xml)
+
+    assert isinstance(eco.path, Path)
+    assert isinstance(eco.ds, _Element)
+    assert eco.dsr is None or isinstance(eco.dsr, _Element)
+
+    assert (
+        xml.read_text('UTF-8')
+        .replace(' />', '/>')
+        .removesuffix('\n<DSR xmlns="http://tempuri.org/DSR.xsd"/>')
+        == eco.tostring()
+    )

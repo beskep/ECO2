@@ -7,7 +7,7 @@ dependencies:
   - lxml-stubs
   - loguru
   - rich
-  - typer
+  - cyclopts
   - cx_freeze
   # dev
   - pytest

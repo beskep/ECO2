@@ -5,6 +5,8 @@ from pathlib import Path
 from lxml import etree
 from lxml.etree import _Element, _ElementTree
 
+XMLNS = 'xmlns'
+
 
 class Eco2Xml:
     """Decrypt한 ECO2 데이터 (xml) 해석."""
@@ -12,11 +14,8 @@ class Eco2Xml:
     DS = 'DS'
     DSR = 'DSR'
 
-    DS_URI = 'http://tempuri.org/DS.xsd'
-    DSR_URI = 'http://tempuri.org/DSR.xsd'
-
-    XMLNS = 'xmlns'
-    DSRT = f'<DSR {XMLNS}="{DSR_URI}">'
+    URI = 'http://tempuri.org/{}.xsd'
+    DSRT = '<DSR xmlns="http://tempuri.org/DSR.xsd">'
 
     def __init__(self, path: str | Path) -> None:
         self._path = Path(path)
@@ -48,7 +47,7 @@ class Eco2Xml:
 
         # 입력 변수 xml
         ds = etree.fromstring(
-            tds.replace(cls.XMLNS, f'{cls.XMLNS}:{cls.DS}'),
+            tds.replace(XMLNS, f'{XMLNS}:{cls.DS}'),
             parser=parser,
         )
 
@@ -57,7 +56,7 @@ class Eco2Xml:
             dsr = None
         else:
             dsr = etree.fromstring(
-                tdsr.replace(cls.XMLNS, f'{cls.XMLNS}:{cls.DSR}'),
+                tdsr.replace(XMLNS, f'{XMLNS}:{cls.DSR}'),
                 parser=parser,
             )
 
@@ -74,7 +73,7 @@ class Eco2Xml:
         s = etree.tostring(obj, encoding='unicode', **kwargs)
 
         if remove_prefix:
-            s = s.replace(f'{cls.XMLNS}:{remove_prefix}', cls.XMLNS)
+            s = s.replace(f'{XMLNS}:{remove_prefix}', XMLNS)
 
         return s
 
@@ -97,5 +96,5 @@ class Eco2Xml:
             yield from self.dsr.iterfind(path, namespaces=namespaces)
 
 
-etree.register_namespace(Eco2Xml.DS, Eco2Xml.DS_URI)
-etree.register_namespace(Eco2Xml.DSR, Eco2Xml.DSR_URI)
+etree.register_namespace(Eco2Xml.DS, Eco2Xml.URI.format(Eco2Xml.DS))
+etree.register_namespace(Eco2Xml.DSR, Eco2Xml.URI.format(Eco2Xml.DSR))
