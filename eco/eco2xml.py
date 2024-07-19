@@ -95,6 +95,10 @@ class Eco2Xml:
         if self.dsr is not None:
             yield from self.dsr.iterfind(path, namespaces=namespaces)
 
+    @classmethod
+    def register_namespace(cls):
+        etree.register_namespace(cls.DS, cls.URI.format(cls.DS))
+        etree.register_namespace(cls.DSR, cls.URI.format(cls.DSR))
 
-etree.register_namespace(Eco2Xml.DS, Eco2Xml.URI.format(Eco2Xml.DS))
-etree.register_namespace(Eco2Xml.DSR, Eco2Xml.URI.format(Eco2Xml.DSR))
+
+Eco2Xml.register_namespace()

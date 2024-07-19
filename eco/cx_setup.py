@@ -1,12 +1,12 @@
 import sysconfig
+import tomllib
 from pathlib import Path
 
-import tomli
 from cx_Freeze import Executable, setup
 
 if __name__ == '__main__':
     path = Path(__file__).parents[1] / 'pyproject.toml'
-    pyprj = tomli.loads(path.read_text())
+    pyprj = tomllib.loads(path.read_text())
     project = pyprj['project']['name']
     version = pyprj['project']['version']
 

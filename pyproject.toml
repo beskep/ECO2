@@ -1,54 +1,81 @@
 [project]
-name = 'ECO2'
-version = '0.4.0'
-requires-python = '>=3.12'
+name = "ECO2"
+version = "0.4.1"
+dependencies = [
+    "pythonnet>=3.0.3",
+    "lxml>=5.2.2",
+    "loguru>=0.7.2",
+    "rich>=13.7.1",
+    "cyclopts>=2.9.3",
+    "cx-freeze>=7.2.0",
+]
+readme = "README.md"
+requires-python = ">=3.12"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "types-lxml>=2024.4.14",
+    "pytest>=8.2.2",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.5.3",
+    "pylint>=3.2.5",
+    "mypy>=1.10.1",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["eco"]
 
 [tool.ruff]
 preview = true
 respect-gitignore = false
-output-format = 'concise'
+output-format = "concise"
 
 [tool.ruff.format]
 preview = true
-quote-style = 'single'
+quote-style = "single"
 docstring-code-format = true
 
 [tool.ruff.lint]
-select = ['ALL']
+select = ["ALL"]
 ignore = [
-    'ANN',    # flake8-annotations
-    'COM',    # flake8-commas
-    'CPY',    # flake8-copyright
-    'D1',     # pydocstyle: D1*
-    'E1',     # pycodestyle: E1*
-    'E2',     # pycodestyle: E2*
-    'FIX',    # flake8-fixme
-    'INP',    # flake8-no-pep420
-    'ISC001', # flake8-implicit-str-concat: single-line-implicit-string-concatenation
-    'Q',      # flake8-quotes
-    'S101',   # flake8-bandit: assert
-    'TD',     # flake8-todos
+    "ANN",    # flake8-annotations
+    "COM",    # flake8-commas
+    "CPY",    # flake8-copyright
+    "D1",     # pydocstyle: D1*
+    "E1",     # pycodestyle: E1*
+    "E2",     # pycodestyle: E2*
+    "FIX",    # flake8-fixme
+    "INP",    # flake8-no-pep420
+    "ISC001", # flake8-implicit-str-concat: single-line-implicit-string-concatenation
+    "Q",      # flake8-quotes
+    "S101",   # flake8-bandit: assert
+    "TD",     # flake8-todos
 ]
 
 [tool.ruff.lint.pydocstyle]
-convention = 'numpy'
+convention = "numpy"
 
 [tool.pylint.messages_control]
-confidence = ['HIGH', 'CONTROL_FLOW', 'INFERENCE']
-enable = ['bad-inline-option', 'useless-suppression']
-disable = ['R', 'C', 'c-extension-no-member']
+confidence = ["HIGH", "CONTROL_FLOW", "INFERENCE"]
+enable = ["bad-inline-option", "useless-suppression"]
+disable = ["R", "C", "c-extension-no-member"]
 
 [tool.mypy]
-disable_error_code = ['import-untyped', 'import', 'var-annotated']
+disable_error_code = ["import-untyped", "import", "var-annotated"]
 check_untyped_defs = true
 warn_unused_ignores = true
 warn_unused_configs = true
 
 [tool.pytest.ini_options]
-addopts = ['-v', '--cov=./']
+addopts = ["-v", "--cov=./"]
 
 [tool.coverage.run]
-omit = ['ECO2/__main__.py', 'ECO2/cx_setup.py']
-
-[tool.typos.default.extend-words]
-henc = 'henc'
+omit = ["ECO2/__main__.py", "ECO2/cx_setup.py"]

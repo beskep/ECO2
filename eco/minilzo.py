@@ -24,12 +24,12 @@ def load_dll():
     except StopIteration:
         raise FileNotFoundError(p) from None
 
-    clr.AddReference(str(dll))  # pylint: disable=no-member # type: ignore
+    clr.AddReference(str(dll))  # pylint: disable=no-member # pyright: ignore[reportAttributeAccessIssue]
 
 
 def compress(data: bytes):
     try:
-        from MiniLZO import MiniLZO  # type: ignore
+        from MiniLZO import MiniLZO  # pyright: ignore[reportMissingImports]
     except ImportError:
         raise MiniLzoImportError from None
 
@@ -38,7 +38,7 @@ def compress(data: bytes):
 
 def decompress(data: bytes):
     try:
-        from MiniLZO import MiniLZO  # type: ignore
+        from MiniLZO import MiniLZO  # pyright: ignore[reportMissingImports]
     except ImportError:
         raise MiniLzoImportError from None
 
