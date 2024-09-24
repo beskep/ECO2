@@ -16,6 +16,8 @@ except FileNotFoundError as e:
 else:
     MINILZO = True
 
+SFType = Literal['00', '01', '10', 'all']
+
 
 class Eco2:
     HEADER = (
@@ -48,11 +50,11 @@ class Eco2:
     }
 
     @classmethod
-    def decrypt_bytes(cls, data: bytes):
+    def decrypt_bytes(cls, data: bytes) -> bytes:
         return bytes(d ^ k for d, k in zip(data, cycle(cls.KEY), strict=False))
 
     @classmethod
-    def encrypt_bytes(cls, data: bytes):
+    def encrypt_bytes(cls, data: bytes) -> bytes:
         return cls.decrypt_bytes(data)
 
     @classmethod
@@ -83,11 +85,31 @@ class Eco2:
         path.write_text(data.replace('\r\n', '\n'), encoding=cls.XENC)
 
     @classmethod
-    def _read_xml(cls, path: Path):
-        return path.read_text(encoding=cls.XENC).replace('\n', '\r\n')
+    def _split_xml(cls, text: str) -> tuple[str, str | None]:
+        if (i := text.find(cls.DSR)) == -1:
+            return text, None
+
+        ds = text[: (text.find(cls.DS) + len(cls.DS))]
+        dsr = text[i:]
+        return ds, dsr
 
     @classmethod
-    def _decrypt(cls, data: bytes, *, decrypt: bool, decompress=False):
+    def _read_xml(cls, path: Path, *, dsr: bool = True) -> str:
+        text = path.read_text(encoding=cls.XENC).replace('\n', '\r\n')
+
+        if not dsr:
+            text = cls._split_xml(text)[0]
+
+        return text
+
+    @classmethod
+    def _decrypt(
+        cls,
+        data: bytes,
+        *,
+        decrypt: bool,
+        decompress: bool = False,
+    ) -> tuple[bytes, str]:
         if decrypt:
             data = cls.decrypt_bytes(data)
         if decompress:
@@ -99,12 +121,11 @@ class Eco2:
 
         xml = xml_bytes.decode(encoding=cls.XENC, errors='ignore')
 
-        if (i := xml.find(cls.DSR)) != -1:
-            # 결과부 (<DSR>)가 존재하는 경우,
-            # <DS>와 <DSR> 사이 decode 불가능한 데이터 제거
-            # (안해도 출력엔 지장 없음)
-            ds = xml[: (xml.find(cls.DS) + len(cls.DS))]
-            dsr = xml[i:]
+        # 결과부 (<DSR>)가 존재하는 경우,
+        # <DS>와 <DSR> 사이 decode 불가능한 데이터 제거
+        # (안해도 출력엔 지장 없음)
+        ds, dsr = cls._split_xml(xml)
+        if dsr is not None:
             xml = f'{ds}\n{dsr}'
 
         return header_bytes, xml
@@ -118,7 +139,8 @@ class Eco2:
         *,
         write_header=True,
     ):
-        """`.eco`, `.ecox`, `.tpl`, `.tplx` 파일 복호화.
+        """
+        `.eco`, `.ecox`, `.tpl`, `.tplx` 파일 복호화.
 
         Parameters
         ----------
@@ -174,9 +196,12 @@ class Eco2:
         header: str | Path,
         xml: str | Path,
         dst: str | Path | None = None,
-        sftype: Literal['00', '01', '10', 'all'] | None = None,
+        *,
+        sftype: SFType | None = None,
+        dsr: bool = True,
     ):
-        """`.eco` 파일 암호화.
+        """
+        `.eco` 파일 암호화.
 
         Parameters
         ----------
@@ -186,10 +211,13 @@ class Eco2:
             Value 파일 경로 (`.xml`)
         dst : str | Path | None, optional
             저장 경로. `None`이면 xml의 확장자를 `.eco`로 변경한 경로.
-        sftype : Literal['00', '01', '10', 'all'] | None, optional
+        sftype : SFType | None, optional
             Header에 저장되는 SFType.
             `None`이면 header 파일을 수정하지 않음.
-            `'all'`이면 모든 SFType (`'00'`, `'01'`, `'10'`)의 파일 저장.
+            `'all'`이면 모든 SFType(`'00'`, `'01'`, `'10'`)의 파일 저장.
+            인증용 파일을 guest 계정으로 사용 시 SFType을 `'10'`으로 변경 필요.
+        dsr : bool, optional
+            결과부 (<DSR>) 포함 여부.
         """
         header = Path(header)
         xml = Path(xml)
@@ -200,7 +228,7 @@ class Eco2:
         logger.log(cls.LOG_LEVEL['dst'], 'Destination="{}"', dst)
 
         hdata = header.read_bytes()
-        xdata = cls._read_xml(path=xml).encode(cls.XENC)
+        xdata = cls._read_xml(path=xml, dsr=dsr).encode(cls.XENC)
 
         for sf in [sftype] if sftype != 'all' else ['00', '01', '10']:
             h = hdata if sf is None else sf.encode() + hdata[2:]

@@ -9,16 +9,17 @@ from lxml.etree import _Element  # noqa: PLC2701
 
 from eco.eco2 import Eco2
 from eco.eco2xml import Eco2Xml
-from tests.data import data_dir, files
+from tests.data import DATA_DIR, FILES
 
 
-@pytest.mark.parametrize('file', files)
-def test_eco2(file, tmp_path: Path):
+@pytest.mark.parametrize('file', FILES)
+def test_eco2(file: str, tmp_path: Path):
     path = tmp_path / file
     suffix = path.suffix.lower()
-    is_eco = suffix == Eco2.EEXT
+    is_eco = suffix.startswith(Eco2.EEXT)
+    is_x = suffix.endswith('x')
 
-    copy2(src=data_dir / file, dst=path)
+    copy2(src=DATA_DIR / file, dst=path)
 
     header = path.with_suffix(Eco2.HEXT)
     xml = path.with_suffix(Eco2.XEXT)
@@ -30,29 +31,31 @@ def test_eco2(file, tmp_path: Path):
 
     Eco2.decrypt(src=path)
 
-    header_data, xml_data = Eco2._decrypt(path.read_bytes(), decrypt=is_eco)
+    header_data, xml_data = Eco2._decrypt(
+        path.read_bytes(),
+        decrypt=is_eco,
+        decompress=is_x,
+    )
 
     if not suffix.endswith('x'):
         assert header_data == header.read_bytes()
 
-    if is_eco:
-        # tpl 파일의 경우 결과부 (<DSR>)이 제거되어 xml가 달라질 수 있음
-        assert hash(xml_data) == hash(Eco2._read_xml(xml))
+    # 추출한 XML 중 DS 부분만 비교
+    assert Eco2._split_xml(xml_data)[0] == Eco2._read_xml(xml, dsr=False)
 
     Eco2.encrypt(header=header, xml=xml, dst=encrypted)
 
-    if is_eco:
-        data = path.read_bytes()
-        assert hash(data) == hash(encrypted.read_bytes())
+    if is_eco and not is_x:
+        assert path.read_bytes() == encrypted.read_bytes()
 
     header.unlink(missing_ok=True)
     xml.unlink(missing_ok=True)
     encrypted.unlink(missing_ok=True)
 
 
-@pytest.mark.parametrize('file', files)
-def test_eco2xml(file: Path):
-    path = data_dir / file
+@pytest.mark.parametrize('file', FILES)
+def test_eco2xml(file: str):
+    path = DATA_DIR / file
     if not (xml := path.with_suffix(Eco2.XEXT)).exists():
         Eco2.decrypt(path, write_header=False)
 

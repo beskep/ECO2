@@ -4,11 +4,11 @@ import pytest
 
 from eco.cli import app
 from eco.eco2 import Eco2
-from tests.data import data_dir, files
+from tests.data import DATA_DIR, FILES
 
 
-@pytest.mark.parametrize('file', files)
-def test_cli_input_file(file, tmp_path: Path):
+@pytest.mark.parametrize('file', FILES)
+def test_cli_input_file(file: str, tmp_path: Path):
     header = tmp_path.joinpath(file).with_suffix(Eco2.HEXT)
     xml = tmp_path.joinpath(file).with_suffix(Eco2.XEXT)
 
@@ -16,7 +16,7 @@ def test_cli_input_file(file, tmp_path: Path):
     xml.unlink(missing_ok=True)
 
     # decrypt
-    args = ['-d', 'decrypt', data_dir / file, '--dst', xml.parent]
+    args = ['--debug', 'decrypt', DATA_DIR / file, '--output', xml.parent, '--header']
     app.meta(list(map(str, args)))
 
     assert header.exists(), header
@@ -26,7 +26,18 @@ def test_cli_input_file(file, tmp_path: Path):
     encrypted.unlink(missing_ok=True)
 
     # encrypt
-    args = ['-d', 'encrypt', xml, '--header', header, '--dst', tmp_path]
+    args = [
+        '--debug',
+        'encrypt',
+        xml,
+        '--header',
+        header,
+        '--output',
+        tmp_path,
+        '--sftype',
+        '10',
+        '--dsr',
+    ]
     app.meta(list(map(str, args)))
 
     assert encrypted.exists(), encrypted
@@ -37,17 +48,24 @@ def test_cli_input_file(file, tmp_path: Path):
 
 
 def test_cli_input_dir(tmp_path: Path):
-    args = ['--debug', 'decrypt', data_dir, '--dst', tmp_path, '--header']
+    args = [
+        '-d',
+        'decrypt',
+        DATA_DIR,
+        '-o',
+        tmp_path,
+        '-H',
+    ]
     app.meta(list(map(str, args)))
 
-    for file in files:
+    for file in FILES:
         header = (tmp_path / file).with_suffix(Eco2.HEXT)
         xml = (tmp_path / file).with_suffix(Eco2.XEXT)
         assert header.exists(), header
         assert xml.exists(), xml
 
-    args = ['--debug', 'encrypt', tmp_path]
+    args = ['-d', 'encrypt', tmp_path, '-o', tmp_path, '-s', '10', '--no-dsr']
     app.meta(list(map(str, args)))
-    for file in files:
+    for file in FILES:
         f = (tmp_path / file).with_suffix(Eco2.EEXT)
         assert f.exists(), f
