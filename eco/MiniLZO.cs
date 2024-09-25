@@ -807,8 +807,5 @@ namespace MiniLZO
         {
             return 42;
         }
-
-        // dotnet new console --framework net8.0
-        // dotnet build --configuration Release
     }
 }

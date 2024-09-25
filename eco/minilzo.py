@@ -1,4 +1,4 @@
-# ruff: noqa: E402 PGH003 PLC0415
+# ruff: noqa: E402 PLC0415
 
 import sys
 from pathlib import Path
@@ -14,17 +14,20 @@ class MiniLzoImportError(RuntimeError):
     pass
 
 
-def load_dll():
+def find_dll():
     is_frozen = hasattr(sys, 'frozen')
-    root = Path(sys.executable).parent if is_frozen else Path(__file__).parents[1]
-    p = 'bin/Release/**/MiniLZO.dll'
+    root = Path(sys.executable).parent if is_frozen else Path()
+    p = '**/bin/Release/**/MiniLZO.dll'
 
     try:
-        dll = next(root.glob(p))
+        return next(root.glob(p)).absolute()
     except StopIteration:
         raise FileNotFoundError(p) from None
 
-    clr.AddReference(str(dll))  # pylint: disable=no-member # pyright: ignore[reportAttributeAccessIssue]
+
+def load_dll(path: str | Path | None = None):
+    path = path or find_dll()
+    clr.AddReference(str(path))  # pylint: disable=no-member # pyright: ignore[reportAttributeAccessIssue]
 
 
 def compress(data: bytes):
@@ -46,4 +49,35 @@ def decompress(data: bytes):
 
 
 if __name__ == '__main__':
-    compress(b'42')
+    import subprocess as sp  # noqa: S404
+
+    import rich
+    from cyclopts import App
+
+    app = App()
+    cnsl = rich.get_console()
+
+    @app.default
+    def test():
+        load_dll()
+        b = b'42' * 42
+        c = compress(b)
+        cnsl.print(f'original    ={b!r}')
+        cnsl.print(f'compressed  ={c}')
+        cnsl.print(f'decompressed={decompress(c)}')
+
+    @app.command
+    def dotnet_new():
+        args = 'dotnet new console --framework net7.0 --name MiniLZO --output . --force'
+        sp.check_output(args)  # noqa: S603
+
+    @app.command
+    def dotnet_build():
+        args = ['dotnet', 'build', '--configuration', 'Release']
+        p = sp.Popen(args, stdin=sp.PIPE, stderr=sp.STDOUT)  # noqa: S603
+
+        while p.poll() is None:
+            if p.stdout is not None:
+                cnsl.print(p.stdout.readline(), end='')
+
+    app()
