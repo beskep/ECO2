@@ -68,11 +68,13 @@ if __name__ == '__main__':
 
     @app.command
     def dotnet_new():
+        """Dotnet new (다시 실행할 필요 없음)."""
         args = 'dotnet new console --framework net7.0 --name MiniLZO --output . --force'
         sp.check_output(args)  # noqa: S603
 
     @app.command
     def dotnet_build():
+        """Build minilzo."""
         args = ['dotnet', 'build', '--configuration', 'Release']
         p = sp.Popen(args, stdin=sp.PIPE, stderr=sp.STDOUT)  # noqa: S603
 
