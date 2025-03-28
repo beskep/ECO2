@@ -1,5 +1,6 @@
 # pylint: disable=protected-access
 # ruff: noqa: SLF001
+from __future__ import annotations
 
 from pathlib import Path
 from shutil import copy2
@@ -16,14 +17,14 @@ from tests.data import DATA_DIR, FILES
 def test_eco2(file: str, tmp_path: Path):
     path = tmp_path / file
     suffix = path.suffix.lower()
-    is_eco = suffix.startswith(Eco2.EEXT)
+    is_eco = suffix.startswith(Eco2.ECO_EXT)
     is_x = suffix.endswith('x')
 
     copy2(src=DATA_DIR / file, dst=path)
 
-    header = path.with_suffix(Eco2.HEXT)
-    xml = path.with_suffix(Eco2.XEXT)
-    encrypted = tmp_path / f'{path.stem}-encrypted{Eco2.EEXT}'
+    header = path.with_suffix(Eco2.HEADER_EXT)
+    xml = path.with_suffix(Eco2.XML_EXT)
+    encrypted = tmp_path / f'{path.stem}-encrypted{Eco2.ECO_EXT}'
 
     header.unlink(missing_ok=True)
     xml.unlink(missing_ok=True)
@@ -54,9 +55,9 @@ def test_eco2(file: str, tmp_path: Path):
 
 
 @pytest.mark.parametrize('file', FILES)
-def test_eco2xml(file: str):
+def test_eco2xml(file: str, tmp_path: Path):
     path = DATA_DIR / file
-    if not (xml := path.with_suffix(Eco2.XEXT)).exists():
+    if not (xml := path.with_suffix(Eco2.XML_EXT)).exists():
         Eco2.decrypt(path, write_header=False)
 
     eco = Eco2Xml(xml)
@@ -71,3 +72,7 @@ def test_eco2xml(file: str):
         .removesuffix('\n<DSR xmlns="http://tempuri.org/DSR.xsd"/>')
         == eco.tostring()
     )
+
+    assert next(eco.iterfind('weather_cha')) is not None
+
+    eco.write(tmp_path / 'tmp')

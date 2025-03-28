@@ -1,4 +1,6 @@
-from pathlib import Path
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -6,11 +8,22 @@ from eco.cli import app
 from eco.eco2 import Eco2
 from tests.data import DATA_DIR, FILES
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def test_empty_path(tmp_path: Path):
+    with pytest.raises(FileNotFoundError):
+        app(['decrypt', str(tmp_path)])
+
+    with pytest.raises(FileNotFoundError):
+        app(['encrypt', str(tmp_path)])
+
 
 @pytest.mark.parametrize('file', FILES)
 def test_cli_input_file(file: str, tmp_path: Path):
-    header = tmp_path.joinpath(file).with_suffix(Eco2.HEXT)
-    xml = tmp_path.joinpath(file).with_suffix(Eco2.XEXT)
+    header = tmp_path.joinpath(file).with_suffix(Eco2.HEADER_EXT)
+    xml = tmp_path.joinpath(file).with_suffix(Eco2.XML_EXT)
 
     header.unlink(missing_ok=True)
     xml.unlink(missing_ok=True)
@@ -22,7 +35,7 @@ def test_cli_input_file(file: str, tmp_path: Path):
     assert header.exists(), header
     assert xml.exists(), xml
 
-    encrypted = (tmp_path / file).with_suffix(Eco2.EEXT)
+    encrypted = (tmp_path / file).with_suffix(Eco2.ECO_EXT)
     encrypted.unlink(missing_ok=True)
 
     # encrypt
@@ -49,23 +62,32 @@ def test_cli_input_file(file: str, tmp_path: Path):
 
 def test_cli_input_dir(tmp_path: Path):
     args = [
-        '-d',
+        '--debug',
         'decrypt',
         DATA_DIR,
-        '-o',
+        '--output',
         tmp_path,
-        '-H',
+        '--header',
     ]
     app.meta(list(map(str, args)))
 
     for file in FILES:
-        header = (tmp_path / file).with_suffix(Eco2.HEXT)
-        xml = (tmp_path / file).with_suffix(Eco2.XEXT)
+        header = (tmp_path / file).with_suffix(Eco2.HEADER_EXT)
+        xml = (tmp_path / file).with_suffix(Eco2.XML_EXT)
         assert header.exists(), header
         assert xml.exists(), xml
 
-    args = ['-d', 'encrypt', tmp_path, '-o', tmp_path, '-s', '10', '--no-dsr']
+    args = [
+        '--debug',
+        'encrypt',
+        tmp_path,
+        '--output',
+        tmp_path,
+        '--sftype',
+        '10',
+        '--no-dsr',
+    ]
     app.meta(list(map(str, args)))
     for file in FILES:
-        f = (tmp_path / file).with_suffix(Eco2.EEXT)
+        f = (tmp_path / file).with_suffix(Eco2.ECO_EXT)
         assert f.exists(), f

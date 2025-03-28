@@ -1,22 +1,28 @@
-from collections.abc import Iterable
+from __future__ import annotations
+
 from itertools import cycle
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from loguru import logger
 
 from eco import minilzo
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 try:
     minilzo.load_dll()
-except FileNotFoundError as e:
-    logger.warning('`{}`를 찾을 수 없음.', e)
+except minilzo.MiniLzoDllNotFoundError as e:
+    logger.warning('`{}`를 찾을 수 없습니다.', e)
     logger.warning('`.ecox`, `.tplx` 파일을 해석할 수 없습니다.')
     MINILZO = False
 else:
     MINILZO = True
 
-SFType = Literal['00', '01', '10', 'all']
+
+type Extension = Literal['eco', 'tpl']
+type SFType = Literal['00', '01', '10', 'all']
 
 
 class Eco2:
@@ -37,16 +43,17 @@ class Eco2:
     DS = '</DS>'
     DSR = '<DSR xmlns="http://tempuri.org/DSR.xsd'
 
-    HENC = 'EUC-KR'
-    XENC = 'UTF-8'
-    HEXT = '.header'
-    XEXT = '.xml'
-    EEXT = '.eco'
+    EUC_KR = 'EUC-KR'
+    UTF8 = 'UTF-8'
+
+    HEADER_EXT = '.header'
+    XML_EXT = '.xml'
+    ECO_EXT = '.eco'
 
     LOG_LEVEL: ClassVar[dict[str, int | str]] = {
-        'header': 10,
-        'src': 10,
-        'dst': 20,
+        'header': 'DEBUG',
+        'src': 'DEBUG',
+        'dst': 'INFO',
     }
 
     @classmethod
@@ -68,21 +75,21 @@ class Eco2:
             b, data = data[:length], data[length:]
 
             try:
-                v = b.decode(cls.HENC).rstrip('\x00')
+                v = b.decode(cls.EUC_KR).rstrip('\x00')
             except ValueError:
                 v = b
 
             yield name, v
 
     @classmethod
-    def _log_header(cls, header: bytes):
+    def _log_header(cls, header: bytes) -> None:
         lvl = cls.LOG_LEVEL['header']
         for key, value in cls._decode_header(header):
             logger.log(lvl, '[Header] {:9s} = {}', key, value)
 
     @classmethod
-    def _write_xml(cls, path: Path, data: str):
-        path.write_text(data.replace('\r\n', '\n'), encoding=cls.XENC)
+    def _write_xml(cls, path: Path, data: str) -> None:
+        path.write_text(data.replace('\r\n', '\n'), encoding=cls.UTF8)
 
     @classmethod
     def _split_xml(cls, text: str) -> tuple[str, str | None]:
@@ -95,7 +102,7 @@ class Eco2:
 
     @classmethod
     def _read_xml(cls, path: Path, *, dsr: bool = True) -> str:
-        text = path.read_text(encoding=cls.XENC).replace('\n', '\r\n')
+        text = path.read_text(encoding=cls.UTF8).replace('\n', '\r\n')
 
         if not dsr:
             text = cls._split_xml(text)[0]
@@ -119,7 +126,7 @@ class Eco2:
         header_bytes = data[:hl]
         xml_bytes = data[hl:]
 
-        xml = xml_bytes.decode(encoding=cls.XENC, errors='ignore')
+        xml = xml_bytes.decode(encoding=cls.UTF8, errors='ignore')
 
         # 결과부 (<DSR>)가 존재하는 경우,
         # <DS>와 <DSR> 사이 decode 불가능한 데이터 제거
@@ -137,15 +144,16 @@ class Eco2:
         header: str | Path | None = None,
         xml: str | Path | None = None,
         *,
-        write_header=True,
-    ):
+        write_header: bool = True,
+        write_dsr: bool = False,
+    ) -> None:
         """
         `.eco`, `.ecox`, `.tpl`, `.tplx` 파일 복호화.
 
         Parameters
         ----------
         src : str | Path
-            ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`) 경로
+            ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`) 경로.
         header : str | Path | None, optional
             저장할 header 파일 경로.
             `None`이면 path의 확장자를 `.header`로 변경한 경로.
@@ -153,11 +161,13 @@ class Eco2:
             저장할 xml 파일 경로.
             `None`이면 path의 확장자를 `.xml`로 변경한 경로.
         write_header : bool, optional
-            header 저장 여부
+            header 저장 여부.
+        write_dst : bool, optional
+            결과부 (<DSR>) 포함 여부.
         """
         src = Path(src)
-        header = src.with_suffix(cls.HEXT) if header is None else Path(header)
-        xml = src.with_suffix(cls.XEXT) if xml is None else Path(xml)
+        header = src.with_suffix(cls.HEADER_EXT) if header is None else Path(header)
+        xml = src.with_suffix(cls.XML_EXT) if xml is None else Path(xml)
 
         logger.log(cls.LOG_LEVEL['src'], 'Source="{}"', src)
         logger.log(cls.LOG_LEVEL['header'], 'Header="{}"', header)
@@ -165,7 +175,7 @@ class Eco2:
 
         data = src.read_bytes()
         suffix = src.suffix.lower()
-        decrypt = suffix.startswith(cls.EEXT)
+        decrypt = suffix.startswith(cls.ECO_EXT)
         decompress = suffix.endswith('x')
 
         if decompress and not MINILZO:
@@ -188,6 +198,9 @@ class Eco2:
         if write_header:
             header.write_bytes(hdata)
 
+        if not write_dsr:
+            xdata = cls._split_xml(xdata)[0]
+
         cls._write_xml(path=xml, data=xdata)
 
     @classmethod
@@ -195,40 +208,40 @@ class Eco2:
         cls,
         header: str | Path,
         xml: str | Path,
-        dst: str | Path | None = None,
+        dst: Extension | Path = 'eco',
         *,
-        sftype: SFType | None = None,
-        dsr: bool = True,
-    ):
+        sftype: SFType | None = '10',
+        write_dsr: bool = False,
+    ) -> None:
         """
         `.eco` 파일 암호화.
 
         Parameters
         ----------
         header : str | Path
-            Header 파일 경로 (`.header`)
+            Header 파일 경로 (`.header`).
         xml : str | Path
-            Value 파일 경로 (`.xml`)
-        dst : str | Path | None, optional
-            저장 경로. `None`이면 xml의 확장자를 `.eco`로 변경한 경로.
+            Value 파일 경로 (`.xml`).
+        dst : Literal['eco', 'tpl'] | Path, optional
+            저장 경로. `Path`면 대상 경로에 저장.
+            `'eco'` 또는 `'tpl'`면 `xml`의 확장자를 해당 값으로 변경한 경로에 저장.
         sftype : SFType | None, optional
             Header에 저장되는 SFType.
             `None`이면 header 파일을 수정하지 않음.
             `'all'`이면 모든 SFType(`'00'`, `'01'`, `'10'`)의 파일 저장.
-            인증용 파일을 guest 계정으로 사용 시 SFType을 `'10'`으로 변경 필요.
-        dsr : bool, optional
+        write_dsr : bool, optional
             결과부 (<DSR>) 포함 여부.
         """
         header = Path(header)
         xml = Path(xml)
-        dst = Path(dst) if dst else xml.with_suffix(cls.EEXT)
+        dst = dst if isinstance(dst, Path) else xml.with_suffix(f'.{dst}')
 
         logger.log(cls.LOG_LEVEL['src'], 'XML="{}"', xml)
         logger.log(cls.LOG_LEVEL['header'], 'Header="{}"', header)
         logger.log(cls.LOG_LEVEL['dst'], 'Destination="{}"', dst)
 
         hdata = header.read_bytes()
-        xdata = cls._read_xml(path=xml, dsr=dsr).encode(cls.XENC)
+        xdata = cls._read_xml(path=xml, dsr=write_dsr).encode(cls.UTF8)
 
         for sf in [sftype] if sftype != 'all' else ['00', '01', '10']:
             h = hdata if sf is None else sf.encode() + hdata[2:]
@@ -236,5 +249,8 @@ class Eco2:
 
             cls._log_header(h)
 
-            encrypted = cls.encrypt_bytes(h + xdata)
-            p.write_bytes(encrypted)
+            b = h + xdata
+            if 'eco' in dst.suffix.lower():
+                b = cls.encrypt_bytes(b)
+
+            p.write_bytes(b)

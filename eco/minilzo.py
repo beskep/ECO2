@@ -1,4 +1,5 @@
 # ruff: noqa: E402 PLC0415
+from __future__ import annotations
 
 import sys
 from pathlib import Path
@@ -10,11 +11,15 @@ pythonnet.load('coreclr')
 import clr
 
 
+class MiniLzoDllNotFoundError(FileNotFoundError):
+    pass
+
+
 class MiniLzoImportError(RuntimeError):
     pass
 
 
-def find_dll():
+def find_dll() -> Path:
     is_frozen = hasattr(sys, 'frozen')
     root = Path(sys.executable).parent if is_frozen else Path()
     p = '**/bin/Release/**/MiniLZO.dll'
@@ -22,15 +27,15 @@ def find_dll():
     try:
         return next(root.glob(p)).absolute()
     except StopIteration:
-        raise FileNotFoundError(p) from None
+        raise MiniLzoDllNotFoundError(p) from None
 
 
-def load_dll(path: str | Path | None = None):
+def load_dll(path: str | Path | None = None) -> None:
     path = path or find_dll()
     clr.AddReference(str(path))  # pylint: disable=no-member # pyright: ignore[reportAttributeAccessIssue]
 
 
-def compress(data: bytes):
+def compress(data: bytes) -> bytes:
     try:
         from MiniLZO import MiniLZO  # pyright: ignore[reportMissingImports]
     except ImportError:
@@ -39,7 +44,7 @@ def compress(data: bytes):
     return bytes(MiniLZO.CompressBytes(data))
 
 
-def decompress(data: bytes):
+def decompress(data: bytes) -> bytes:
     try:
         from MiniLZO import MiniLZO  # pyright: ignore[reportMissingImports]
     except ImportError:
@@ -63,8 +68,8 @@ if __name__ == '__main__':
         b = b'42' * 42
         c = compress(b)
         cnsl.print(f'original    ={b!r}')
-        cnsl.print(f'compressed  ={c}')
-        cnsl.print(f'decompressed={decompress(c)}')
+        cnsl.print(f'compressed  ={c!r}')
+        cnsl.print(f'decompressed={decompress(c)!r}')
 
     @app.command
     def dotnet_new():

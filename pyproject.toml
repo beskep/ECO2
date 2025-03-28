@@ -1,26 +1,27 @@
 [project]
 name = "ECO2"
-version = "0.5.0"
-dependencies = [
-    "pythonnet>=3.0.3",
-    "lxml>=5.2.2",
-    "loguru>=0.7.2",
-    "rich>=13.7.1",
-    "cyclopts>=2.9.3",
-    "cx-freeze>=7.2.0",
-]
+version = "0.6.0"
+description = "효율등급인증 평가프로그램 ECO2 저장 파일 해석"
 readme = "README.md"
 requires-python = ">=3.12"
+dependencies = [
+    "cx-freeze>=8.0.0",
+    "cyclopts>=3.11.1",
+    "loguru>=0.7.3",
+    "lxml>=5.3.1",
+    "pythonnet>=3.0.5",
+    "rich>=13.9.4",
+]
 
 [dependency-groups]
 dev = [
-    "types-lxml>=2024.4.14",
-    "pytest>=8.2.2",
-    "pytest-cov>=5.0.0",
+    "mypy>=1.15.0",
+    "pylint>=3.3.6",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.0.0",
     "pytest-sugar>=1.0.0",
-    "ruff>=0.5.3",
-    "pylint>=3.2.5",
-    "mypy>=1.10.1",
+    "ruff>=0.11.2",
+    "types-lxml>=2025.3.4",
     "typos>=1.30.3",
 ]
 
@@ -56,9 +57,17 @@ ignore = [
     "S101",   # flake8-bandit: assert
     "TD",     # flake8-todos
 ]
+extend-safe-fixes = [
+    "EM", # flake8-errmsg
+    "PT", # flake8-pytest-style
+    "TC", # flake8-type-checking
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
 
 [tool.pylint.messages_control]
 confidence = ["HIGH", "CONTROL_FLOW", "INFERENCE"]
@@ -76,15 +85,7 @@ addopts = ["-v", "--doctest-modules", "--cov=./", "--cov-report", "html"]
 
 [tool.coverage.report]
 exclude_also = [
-    "@(abc\\.)?abstractmethod",
     "if __name__ == .__main__.:",
     "if (typing\\.)?TYPE_CHECKING:",
-    "raise AssertionError",
-    "raise NotImplementedError",
+    "except .*(\\n)?.*MiniLzo.*Error",
 ]
-
-[tool.coverage.run]
-omit = ["ECO2/__main__.py", "ECO2/cx_setup.py"]
-
-[tool.typos.type.py.extend-words]
-HENC = "HENC" # header encoding

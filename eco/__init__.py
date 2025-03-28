@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from . import minilzo
 from .cli import app
 from .eco2 import Eco2, SFType

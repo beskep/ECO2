@@ -296,23 +296,23 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cx-freeze", specifier = ">=7.2.0" },
-    { name = "cyclopts", specifier = ">=2.9.3" },
-    { name = "loguru", specifier = ">=0.7.2" },
-    { name = "lxml", specifier = ">=5.2.2" },
-    { name = "pythonnet", specifier = ">=3.0.3" },
-    { name = "rich", specifier = ">=13.7.1" },
+    { name = "cx-freeze", specifier = ">=8.0.0" },
+    { name = "cyclopts", specifier = ">=3.11.1" },
+    { name = "loguru", specifier = ">=0.7.3" },
+    { name = "lxml", specifier = ">=5.3.1" },
+    { name = "pythonnet", specifier = ">=3.0.5" },
+    { name = "rich", specifier = ">=13.9.4" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "mypy", specifier = ">=1.10.1" },
-    { name = "pylint", specifier = ">=3.2.5" },
-    { name = "pytest", specifier = ">=8.2.2" },
-    { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "mypy", specifier = ">=1.15.0" },
+    { name = "pylint", specifier = ">=3.3.6" },
+    { name = "pytest", specifier = ">=8.3.5" },
+    { name = "pytest-cov", specifier = ">=6.0.0" },
     { name = "pytest-sugar", specifier = ">=1.0.0" },
-    { name = "ruff", specifier = ">=0.5.3" },
-    { name = "types-lxml", specifier = ">=2024.4.14" },
+    { name = "ruff", specifier = ">=0.11.2" },
+    { name = "types-lxml", specifier = ">=2025.3.4" },
     { name = "typos", specifier = ">=1.30.3" },
 ]
 

@@ -1,11 +1,15 @@
 # ruff: noqa: S320
+from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from lxml import etree
-from lxml.etree import _Element, _ElementTree
 
-XMLNS = 'xmlns'
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from lxml.etree import _Element, _ElementTree
 
 
 class Eco2Xml:
@@ -16,6 +20,8 @@ class Eco2Xml:
 
     URI = 'http://tempuri.org/{}.xsd'
     DSRT = '<DSR xmlns="http://tempuri.org/DSR.xsd">'
+
+    XMLNS = 'xmlns'
 
     def __init__(self, path: str | Path) -> None:
         self._path = Path(path)
@@ -47,7 +53,7 @@ class Eco2Xml:
 
         # 입력 변수 xml
         ds = etree.fromstring(
-            tds.replace(XMLNS, f'{XMLNS}:{cls.DS}'),
+            tds.replace(cls.XMLNS, f'{cls.XMLNS}:{cls.DS}'),
             parser=parser,
         )
 
@@ -56,7 +62,7 @@ class Eco2Xml:
             dsr = None
         else:
             dsr = etree.fromstring(
-                tdsr.replace(XMLNS, f'{XMLNS}:{cls.DSR}'),
+                tdsr.replace(cls.XMLNS, f'{cls.XMLNS}:{cls.DSR}'),
                 parser=parser,
             )
 
@@ -69,11 +75,11 @@ class Eco2Xml:
         /,
         remove_prefix: str | None = None,
         **kwargs,
-    ):
-        s = etree.tostring(obj, encoding='unicode', **kwargs)
+    ) -> str:
+        s = etree.tostring(obj, encoding='unicode', method='xml', **kwargs)
 
         if remove_prefix:
-            s = s.replace(f'{XMLNS}:{remove_prefix}', XMLNS)
+            s = s.replace(f'{cls.XMLNS}:{remove_prefix}', cls.XMLNS)
 
         return s
 
@@ -86,10 +92,10 @@ class Eco2Xml:
 
         return s
 
-    def write(self, path: str | Path, encoding='UTF-8'):
+    def write(self, path: str | Path, encoding='UTF-8') -> None:
         Path(path).write_text(self.tostring(), encoding=encoding)
 
-    def iterfind(self, path: str, namespaces=None):
+    def iterfind(self, path: str, namespaces=None) -> Iterator[_Element]:
         yield from self.ds.iterfind(path, namespaces=namespaces)
 
         if self.dsr is not None:
