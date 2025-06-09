@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import rich
 from loguru import logger
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from logging import LogRecord
 
     from rich.highlighter import Highlighter
+    from rich.style import Style
     from rich.table import Column
 
 
@@ -38,7 +39,7 @@ class LogHandler(RichHandler):
         *,
         rich_tracebacks: bool = False,
         remove: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         `loguru.logger` 세팅.
@@ -80,11 +81,11 @@ class ProgressColumn(progress.TaskProgressColumn):
     def __init__(
         self,
         *,
-        style='progress.download',
+        style: str | Style = 'progress.download',
         highlighter: Highlighter | None = None,
         table_column: Column | None = None,
         show_speed: bool = False,
-    ):
+    ) -> None:
         super().__init__(
             text_format='',
             text_format_no_percentage='',

@@ -20,12 +20,12 @@ app.meta.group_parameters = Group('Options', sort_key=0)
 def launcher(
     *tokens: Annotated[str, Parameter(show=False, allow_leading_hyphen=True)],
     debug: bool = False,
-):
+) -> None:
     LogHandler.set(level=10 if debug else 20)
     app(tokens)
 
 
-def _decrypt_targets(src: list[Path]):
+def _decrypt_targets(src: list[Path]) -> list[Path]:
     if len(src) != 1:
         return src
 
@@ -51,7 +51,7 @@ def decrypt(
     *,
     output: Path | None = None,
     header: bool = True,
-):
+) -> None:
     """
     ECO2 저장 파일(`.eco`, `.ecox`, `.tpl`, `.tplx`)을 해석해 header와 xml 파일 저장.
 
@@ -89,7 +89,7 @@ def decrypt(
             logger.exception(e)
 
 
-def _encrypt_targets(src: list[Path]):
+def _encrypt_targets(src: list[Path]) -> list[Path]:
     if len(src) != 1:
         return src
 
@@ -127,7 +127,7 @@ def encrypt(
     header: Path | None = None,
     output: Path | None = None,
     conf: EncryptConfig = _DEFAULT_ENCRYPT_CONF,
-):
+) -> None:
     """
     header와 xml 파일을 암호화해 `.eco` 파일로 변환.
 

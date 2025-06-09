@@ -63,7 +63,7 @@ if __name__ == '__main__':
     cnsl = rich.get_console()
 
     @app.default
-    def test():
+    def test() -> None:
         load_dll()
         b = b'42' * 42
         c = compress(b)
@@ -72,13 +72,13 @@ if __name__ == '__main__':
         cnsl.print(f'decompressed={decompress(c)!r}')
 
     @app.command
-    def dotnet_new():
+    def dotnet_new() -> None:
         """Dotnet new (다시 실행할 필요 없음)."""
         args = 'dotnet new console --framework net7.0 --name MiniLZO --output . --force'
         sp.check_output(args)  # noqa: S603
 
     @app.command
-    def dotnet_build():
+    def dotnet_build() -> None:
         """Build minilzo."""
         args = ['dotnet', 'build', '--configuration', 'Release']
         p = sp.Popen(args, stdin=sp.PIPE, stderr=sp.STDOUT)  # noqa: S603

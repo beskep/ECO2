@@ -1,13 +1,12 @@
-# ruff: noqa: S320
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from lxml import etree
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Mapping
 
     from lxml.etree import _Element, _ElementTree
 
@@ -74,7 +73,7 @@ class Eco2Xml:
         obj: _Element | _ElementTree,
         /,
         remove_prefix: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> str:
         s = etree.tostring(obj, encoding='unicode', method='xml', **kwargs)
 
@@ -92,17 +91,21 @@ class Eco2Xml:
 
         return s
 
-    def write(self, path: str | Path, encoding='UTF-8') -> None:
+    def write(self, path: str | Path, encoding: str | None = 'UTF-8') -> None:
         Path(path).write_text(self.tostring(), encoding=encoding)
 
-    def iterfind(self, path: str, namespaces=None) -> Iterator[_Element]:
+    def iterfind(
+        self,
+        path: str,
+        namespaces: Mapping[str | None, str] | None = None,
+    ) -> Iterator[_Element]:
         yield from self.ds.iterfind(path, namespaces=namespaces)
 
         if self.dsr is not None:
             yield from self.dsr.iterfind(path, namespaces=namespaces)
 
     @classmethod
-    def register_namespace(cls):
+    def register_namespace(cls) -> None:
         etree.register_namespace(cls.DS, cls.URI.format(cls.DS))
         etree.register_namespace(cls.DSR, cls.URI.format(cls.DSR))
 
