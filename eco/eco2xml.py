@@ -1,54 +1,71 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Any
 
 from lxml import etree
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Generator, Iterator, Mapping
 
     from lxml.etree import _Element, _ElementTree
 
 
+def _lines(
+    source: str | Path | IO[str],
+    encoding: str | None = 'UTF-8',
+    errors: str | None = 'ignore',
+) -> Generator[str]:
+    with (
+        Path(source).open('r', encoding=encoding, errors=errors)
+        if isinstance(source, str | Path)
+        else source as f
+    ):
+        yield from f
+
+
 class Eco2Xml:
-    """Decrypt한 ECO2 데이터 (xml) 해석."""
+    """Decrypt한 ECO2 데이터 (xml), ECO2-OD 파일 (.ECL2) 해석."""
 
     DS = 'DS'
     DSR = 'DSR'
 
     URI = 'http://tempuri.org/{}.xsd'
-    DSRT = '<DSR xmlns="http://tempuri.org/DSR.xsd">'
+    TAG_DS = '<DS xmlns="http://tempuri.org/DS.xsd">'
+    TAG_DSR = '<DSR xmlns="http://tempuri.org/DSR.xsd">'
 
     XMLNS = 'xmlns'
 
-    def __init__(self, path: str | Path) -> None:
-        self._path = Path(path)
-        self._ds, self._dsr = self.read_xml(self._path)
-
-    @property
-    def path(self) -> Path:
-        return self._path
-
-    @property
-    def ds(self) -> _Element:
-        return self._ds
-
-    @property
-    def dsr(self) -> _Element | None:
-        return self._dsr
+    def __init__(self, source: str | Path | IO[str]) -> None:
+        self.source = source
+        xml = self.read_xml(source)
+        self.ds: _Element = xml[0]
+        self.dsr: _Element | None = xml[1]
 
     @classmethod
-    def read_xml(cls, path: Path) -> tuple[_Element, _Element | None]:
-        text = path.read_text('UTF-8')
-        parser = etree.XMLParser(recover=True)
+    def _read_text(cls, source: str | Path | IO[str]) -> Generator[str]:
+        it = _lines(source)
 
-        if (i := text.find(cls.DSRT)) == -1:
+        # ECO2-OD 파일 앞부분 (EUC-KR 인코딩) 처리
+        if not (line := next(it).rstrip()).endswith(cls.TAG_DS):  # pragma: no cover
+            msg = f'Unexpected first line: {line}'
+            raise ValueError(msg)
+
+        yield f'{cls.TAG_DS}\n'
+        yield from it
+
+    @classmethod
+    def read_xml(cls, source: str | Path | IO[str]) -> tuple[_Element, _Element | None]:
+        text = ''.join(cls._read_text(source))
+
+        if (i := text.find(cls.TAG_DSR)) == -1:
             tds = text
             tdsr = None
         else:
             tds = text[:i]
             tdsr = text[i:]
+
+        parser = etree.XMLParser(recover=True)
 
         # 입력 변수 xml
         ds = etree.fromstring(
@@ -65,7 +82,7 @@ class Eco2Xml:
                 parser=parser,
             )
 
-        return (ds, dsr)
+        return ds, dsr
 
     @classmethod
     def _tostring(

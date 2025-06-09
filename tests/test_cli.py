@@ -6,7 +6,7 @@ import pytest
 
 from eco.cli import app
 from eco.eco2 import Eco2
-from tests.data import DATA_DIR, FILES
+from tests.data import ECO2, ROOT
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -20,7 +20,7 @@ def test_empty_path(tmp_path: Path):
         app(['encrypt', str(tmp_path)])
 
 
-@pytest.mark.parametrize('file', FILES)
+@pytest.mark.parametrize('file', ECO2)
 def test_cli_input_file(file: str, tmp_path: Path):
     header = tmp_path.joinpath(file).with_suffix(Eco2.HEADER_EXT)
     xml = tmp_path.joinpath(file).with_suffix(Eco2.XML_EXT)
@@ -29,7 +29,7 @@ def test_cli_input_file(file: str, tmp_path: Path):
     xml.unlink(missing_ok=True)
 
     # decrypt
-    args = ['--debug', 'decrypt', DATA_DIR / file, '--output', xml.parent, '--header']
+    args = ['--debug', 'decrypt', ROOT / file, '--output', xml.parent, '--header']
     app.meta(list(map(str, args)))
 
     assert header.exists(), header
@@ -64,14 +64,14 @@ def test_cli_input_dir(tmp_path: Path):
     args = [
         '--debug',
         'decrypt',
-        DATA_DIR,
+        ROOT,
         '--output',
         tmp_path,
         '--header',
     ]
     app.meta(list(map(str, args)))
 
-    for file in FILES:
+    for file in ECO2:
         header = (tmp_path / file).with_suffix(Eco2.HEADER_EXT)
         xml = (tmp_path / file).with_suffix(Eco2.XML_EXT)
         assert header.exists(), header
@@ -88,6 +88,6 @@ def test_cli_input_dir(tmp_path: Path):
         '--no-dsr',
     ]
     app.meta(list(map(str, args)))
-    for file in FILES:
+    for file in ECO2:
         f = (tmp_path / file).with_suffix(Eco2.ECO_EXT)
         assert f.exists(), f
