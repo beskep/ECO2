@@ -13,9 +13,7 @@ if TYPE_CHECKING:
 
 try:
     minilzo.load_dll()
-except minilzo.MiniLzoDllNotFoundError as e:
-    logger.warning('`{}`를 찾을 수 없습니다.', e)
-    logger.warning('`.ecox`, `.tplx` 파일을 해석할 수 없습니다.')
+except minilzo.MiniLzoDllNotFoundError:
     MINILZO = False
 else:
     MINILZO = True
