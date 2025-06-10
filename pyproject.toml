@@ -51,7 +51,6 @@ ignore = [
     "FIX",  # flake8-fixme
     "Q",    # flake8-quotes
     "S101", # flake8-bandit: assert
-    "TD",   # flake8-todos
 ]
 extend-safe-fixes = [
     "EM", # flake8-errmsg

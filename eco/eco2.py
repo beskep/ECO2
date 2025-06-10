@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from itertools import cycle
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, NamedTuple, Self
 
 from loguru import logger
 
@@ -20,7 +20,16 @@ else:
 
 
 type Extension = Literal['eco', 'tpl']
-type SFType = Literal['00', '01', '10', 'all']
+type SFType = Literal['00', '01', '10']
+
+
+class Eco2Data(NamedTuple):
+    header: bytes
+    xml: str
+
+    def replace_sftype(self, sftype: SFType) -> Self:
+        header = sftype.encode() + self.header[2:]
+        return type(self)(header, self.xml)
 
 
 class Eco2:
@@ -86,8 +95,8 @@ class Eco2:
             logger.log(lvl, '[Header] {:9s} = {}', key, value)
 
     @classmethod
-    def _write_xml(cls, path: Path, data: str) -> None:
-        path.write_text(data.replace('\r\n', '\n'), encoding=cls.UTF8)
+    def _write_xml(cls, path: Path, text: str) -> None:
+        path.write_text(text.replace('\r\n', '\n'), encoding=cls.UTF8)
 
     @classmethod
     def _split_xml(cls, text: str) -> tuple[str, str | None]:
@@ -108,20 +117,42 @@ class Eco2:
         return text
 
     @classmethod
-    def _decrypt(
+    def decrypt(
         cls,
         data: bytes,
         *,
         decrypt: bool,
         decompress: bool = False,
-    ) -> tuple[bytes, str]:
+    ) -> Eco2Data:
+        """
+        ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`) 데이터 복호화.
+
+        Parameters
+        ----------
+        data : bytes
+            원본 데이터.
+        decrypt : bool
+            decrypt 여부. `.eco` 또는 `.ecox` 파일이면 `True`.
+        decompress : bool, optional
+            MiniLZO 압축 해제 여부. `.ecox` 또는 `.tplx` 파일이면 `True`.
+
+        Returns
+        -------
+        Eco2Data
+        """
         if decrypt:
             data = cls.decrypt_bytes(data)
         if decompress:
+            if not MINILZO:  # pragma: no cover
+                logger.error(
+                    'MiniLZO.dll을 불러올 수 없습니다. '
+                    '`.ecox`, `.tplx` 파일을 해석할 수 없습니다.'
+                )
+
             data = minilzo.decompress(data)
 
         hl = cls.header_length()
-        header_bytes = data[:hl]
+        header = data[:hl]
         xml_bytes = data[hl:]
 
         xml = xml_bytes.decode(encoding=cls.UTF8, errors='ignore')
@@ -133,10 +164,44 @@ class Eco2:
         if dsr is not None:
             xml = f'{ds}\n{dsr}'
 
-        return header_bytes, xml
+        return Eco2Data(header, xml)
 
     @classmethod
-    def decrypt(
+    def read_and_decrypt(cls, src: str | Path) -> Eco2Data:
+        """
+        ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`) 복호화.
+
+        Parameters
+        ----------
+        src : str | Path
+            대상 파일 경로.
+
+        Returns
+        -------
+        Eco2Data
+        """
+        src = Path(src)
+
+        suffix = src.suffix.lower()
+        decrypt = suffix.startswith(cls.ECO_EXT)
+        decompress = suffix.endswith('x')
+
+        raw = src.read_bytes()
+
+        try:
+            data = cls.decrypt(raw, decrypt=decrypt, decompress=decompress)
+        except ValueError:  # pragma: no cover
+            logger.info(
+                'decrypt={} 설정으로 해석 실패. decrypt={} 설정으로 재시도.',
+                decrypt,
+                not decrypt,
+            )
+            data = cls.decrypt(raw, decrypt=not decrypt, decompress=decompress)
+
+        return data
+
+    @classmethod
+    def decrypt_and_write(
         cls,
         src: str | Path,
         header: str | Path | None = None,
@@ -146,12 +211,12 @@ class Eco2:
         write_dsr: bool = False,
     ) -> None:
         """
-        `.eco`, `.ecox`, `.tpl`, `.tplx` 파일 복호화.
+        ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`) 파일 복호화 및 저장.
 
         Parameters
         ----------
         src : str | Path
-            ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`) 경로.
+            대상 파일 경로.
         header : str | Path | None, optional
             저장할 header 파일 경로.
             `None`이면 path의 확장자를 `.header`로 변경한 경로.
@@ -160,7 +225,7 @@ class Eco2:
             `None`이면 path의 확장자를 `.xml`로 변경한 경로.
         write_header : bool, optional
             header 저장 여부.
-        write_dst : bool, optional
+        write_dsr : bool, optional
             결과부 (<DSR>) 포함 여부.
         """
         src = Path(src)
@@ -171,48 +236,62 @@ class Eco2:
         logger.log(cls.LOG_LEVEL['header'], 'Header="{}"', header)
         logger.log(cls.LOG_LEVEL['dst'], 'XML="{}"', xml)
 
-        data = src.read_bytes()
-        suffix = src.suffix.lower()
-        decrypt = suffix.startswith(cls.ECO_EXT)
-        decompress = suffix.endswith('x')
+        data = cls.read_and_decrypt(src)
 
-        if decompress and not MINILZO:
-            logger.error(
-                'MiniLZO.dll을 불러올 수 없습니다. '
-                '`.ecox`, `.tplx` 파일을 해석할 수 없습니다.'
-            )
-
-        try:
-            hdata, xdata = cls._decrypt(
-                data=data, decrypt=decrypt, decompress=decompress
-            )
-        except ValueError:
-            hdata, xdata = cls._decrypt(
-                data=data, decrypt=not decrypt, decompress=decompress
-            )
-
-        cls._log_header(hdata)
-
+        cls._log_header(data.header)
         if write_header:
-            header.write_bytes(hdata)
+            header.write_bytes(data.header)
 
-        if not write_dsr:
-            xdata = cls._split_xml(xdata)[0]
-
-        cls._write_xml(path=xml, data=xdata)
+        text = data.xml if write_dsr else cls._split_xml(data.xml)[0]
+        cls._write_xml(path=xml, text=text)
 
     @classmethod
     def encrypt(
+        cls,
+        data: Eco2Data,
+        sftype: SFType | None = None,
+        *,
+        encrypt: bool = True,
+    ) -> bytes:
+        """
+        `Eco2Data` 데이터를 ECO2 파일 형식으로 인코딩/암호화.
+
+        Parameters
+        ----------
+        data : Eco2Data
+            대상 데이터.
+        sftype : SFType | None, optional
+            Header에 저장되는 SFType.
+            `None`이면 header 파일을 수정하지 않음.
+        encrypt : bool, optional
+            encrypt 여부. `.eco` 또는 파일이면 `True`.
+
+        Returns
+        -------
+        bytes
+        """
+        if sftype:
+            data = data.replace_sftype(sftype)
+
+        b = data.header + data.xml.encode(cls.UTF8)
+
+        if encrypt:
+            b = cls.encrypt_bytes(b)
+
+        return b
+
+    @classmethod
+    def encrypt_and_write(
         cls,
         header: str | Path,
         xml: str | Path,
         dst: Extension | Path = 'eco',
         *,
-        sftype: SFType | None = '10',
+        sftype: SFType | Literal['all'] | None = '10',
         write_dsr: bool = False,
     ) -> None:
         """
-        `.eco` 파일 암호화.
+        header와 xml 파일을 `.eco` 파일로 암호화.
 
         Parameters
         ----------
@@ -238,17 +317,17 @@ class Eco2:
         logger.log(cls.LOG_LEVEL['header'], 'Header="{}"', header)
         logger.log(cls.LOG_LEVEL['dst'], 'Destination="{}"', dst)
 
-        hdata = header.read_bytes()
-        xdata = cls._read_xml(path=xml, dsr=write_dsr).encode(cls.UTF8)
+        data = Eco2Data(
+            header=header.read_bytes(),
+            xml=cls._read_xml(xml, dsr=write_dsr),
+        )
 
+        sf: Any
         for sf in [sftype] if sftype != 'all' else ['00', '01', '10']:
-            h = hdata if sf is None else sf.encode() + hdata[2:]
-            p = dst if sftype != 'all' else dst.with_stem(f'{dst.stem}_SF{sf}')
-
-            cls._log_header(h)
-
-            b = h + xdata
-            if 'eco' in dst.suffix.lower():
-                b = cls.encrypt_bytes(b)
-
+            b = cls.encrypt(
+                data,
+                sftype=sf,
+                encrypt='eco' in dst.suffix.lower(),
+            )
+            p = dst if sftype != 'all' else dst.with_stem(f'{dst.stem} SF{sf}')
             p.write_bytes(b)

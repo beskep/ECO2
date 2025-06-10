@@ -77,12 +77,7 @@ def decrypt(
         xml = output / f'{src.stem}{Eco2.XML_EXT}' if output else None
 
         try:
-            Eco2.decrypt(
-                src=src,
-                header=h,
-                xml=xml,
-                write_header=header,
-            )
+            Eco2.decrypt_and_write(src=src, header=h, xml=xml, write_header=header)
         except MiniLzoImportError as e:
             logger.error(e.__class__.__name__)
         except (ValueError, OSError) as e:
@@ -151,7 +146,7 @@ def encrypt(
         dst = output / f'{x.stem}{ext}' if output else x.with_suffix(ext)
 
         try:
-            Eco2.encrypt(
+            Eco2.encrypt_and_write(
                 header=h,
                 xml=x,
                 dst=dst,

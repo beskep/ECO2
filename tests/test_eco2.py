@@ -30,9 +30,9 @@ def test_eco2(file: str, tmp_path: Path):
     xml.unlink(missing_ok=True)
     encrypted.unlink(missing_ok=True)
 
-    Eco2.decrypt(src=src)
+    Eco2.decrypt_and_write(src=src)
 
-    header_data, xml_data = Eco2._decrypt(
+    header_data, xml_data = Eco2.decrypt(
         src.read_bytes(),
         decrypt=is_eco,
         decompress=is_x,
@@ -44,7 +44,7 @@ def test_eco2(file: str, tmp_path: Path):
     # 추출한 XML 중 DS 부분만 비교
     assert Eco2._split_xml(xml_data)[0] == Eco2._read_xml(xml, dsr=False)
 
-    Eco2.encrypt(header=header, xml=xml, dst=encrypted)
+    Eco2.encrypt_and_write(header=header, xml=xml, dst=encrypted)
 
     if is_eco and not is_x:
         assert src.read_bytes() == encrypted.read_bytes()
@@ -58,7 +58,7 @@ def test_eco2(file: str, tmp_path: Path):
 def test_eco2xml(file: str, tmp_path: Path):
     path = data.ROOT / file
     if not (xml := path.with_suffix(Eco2.XML_EXT)).exists():
-        Eco2.decrypt(path, write_header=False)
+        Eco2.decrypt_and_write(path, write_header=False)
 
     eco = Eco2Xml(xml)
 
