@@ -47,7 +47,7 @@ select = ["ALL"]
 ignore = [
     "COM",  # flake8-commas
     "CPY",  # flake8-copyright
-    "D1",   # pydocstyle: D1*
+    "D100", # pydocstyle: undocumented-public-module
     "FIX",  # flake8-fixme
     "Q",    # flake8-quotes
     "S101", # flake8-bandit: assert
@@ -59,7 +59,7 @@ extend-safe-fixes = [
 ]
 
 [tool.ruff.lint.extend-per-file-ignores]
-"tests/**" = ["ANN"]
+"tests/**" = ["ANN", "D"]
 
 [tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true

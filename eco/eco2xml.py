@@ -56,6 +56,17 @@ class Eco2Xml:
 
     @classmethod
     def read_xml(cls, source: str | Path | IO[str]) -> tuple[_Element, _Element | None]:
+        """
+        xml을 DR, DSR로 해석.
+
+        Parameters
+        ----------
+        source : str | Path | IO[str]
+
+        Returns
+        -------
+        tuple[_Element, _Element | None]
+        """
         text = ''.join(cls._read_text(source))
 
         if (i := text.find(cls.TAG_DSR)) == -1:
@@ -100,6 +111,13 @@ class Eco2Xml:
         return s
 
     def tostring(self) -> str:
+        """
+        str으로 변환.
+
+        Returns
+        -------
+        str
+        """
         s = self._tostring(self.ds, remove_prefix=self.DS)
 
         if self.dsr is not None:
@@ -109,6 +127,14 @@ class Eco2Xml:
         return s
 
     def write(self, path: str | Path, encoding: str | None = 'UTF-8') -> None:
+        """
+        파일 저장.
+
+        Parameters
+        ----------
+        path : str | Path
+        encoding : str | None, optional
+        """
         Path(path).write_text(self.tostring(), encoding=encoding)
 
     def iterfind(
@@ -116,6 +142,18 @@ class Eco2Xml:
         path: str,
         namespaces: Mapping[str | None, str] | None = None,
     ) -> Iterator[_Element]:
+        """
+        하위 element 탐색.
+
+        Parameters
+        ----------
+        path : str
+        namespaces : Mapping[str  |  None, str] | None, optional
+
+        Yields
+        ------
+        Iterator[_Element]
+        """
         yield from self.ds.iterfind(path, namespaces=namespaces)
 
         if self.dsr is not None:
@@ -123,6 +161,7 @@ class Eco2Xml:
 
     @classmethod
     def register_namespace(cls) -> None:
+        """Namespace 등록."""
         etree.register_namespace(cls.DS, cls.URI.format(cls.DS))
         etree.register_namespace(cls.DSR, cls.URI.format(cls.DSR))
 

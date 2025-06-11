@@ -17,7 +17,7 @@ app.meta.group_parameters = Group('Options', sort_key=0)
 
 
 @app.meta.default
-def launcher(
+def _launcher(
     *tokens: Annotated[str, Parameter(show=False, allow_leading_hyphen=True)],
     debug: bool = False,
 ) -> None:
@@ -43,6 +43,32 @@ def _decrypt_targets(src: list[Path]) -> list[Path]:
         raise FileNotFoundError(msg)
 
     return paths
+
+
+def _decrypt_impl(
+    src: Path,
+    dst: Path | None = None,
+    *,
+    write_header: bool = True,
+) -> None:
+    stem = src.stem
+    dst = dst or src.parent
+    header = dst / f'{stem}.header' if write_header else None
+    xml = dst / f'{stem}.xml'
+
+    logger.info('src="{}"', src)
+    logger.debug('header="{}"', header)
+    logger.debug('xml="{}"', xml)
+
+    eco = Eco2.read(src)
+
+    for key, value in eco.decode_header(eco.header):
+        logger.debug('[Header] {:9s} = {}', key, value)
+
+    if header:
+        header.write_bytes(eco.header)
+
+    xml.write_text(eco.xml, encoding='UTF-8')
 
 
 @app.command
@@ -73,14 +99,11 @@ def decrypt(
     )
 
     for src in it:
-        h = output / f'{src.stem}{Eco2.HEADER_EXT}' if output else None
-        xml = output / f'{src.stem}{Eco2.XML_EXT}' if output else None
-
         try:
-            Eco2.decrypt_and_write(src=src, header=h, xml=xml, write_header=header)
+            _decrypt_impl(src=src, dst=output, write_header=header)
         except MiniLzoImportError as e:
-            logger.error(e.__class__.__name__)
-        except (ValueError, OSError) as e:
+            logger.error(e)
+        except (ValueError, RuntimeError, OSError) as e:
             logger.exception(e)
 
 
@@ -91,7 +114,7 @@ def _encrypt_targets(src: list[Path]) -> list[Path]:
     if not (s := src[0]).is_dir():
         return src
 
-    if not (paths := list(s.glob(f'*{Eco2.XML_EXT}'))):
+    if not (paths := list(s.glob('*.xml'))):
         msg = f'다음 경로에서 파일을 찾지 못함: "{s.absolute()}"'
         raise FileNotFoundError(msg)
 
@@ -101,6 +124,8 @@ def _encrypt_targets(src: list[Path]) -> list[Path]:
 @cyclopts.Parameter(name='*')
 @dataclass
 class EncryptConfig:
+    """암호화 설정."""
+
     extension: Extension = 'eco'
     """저장할 파일 형식."""
 
@@ -109,10 +134,39 @@ class EncryptConfig:
     `'all'`이면 모든 SFType(`'00'`, `'01'`, `'10'`)의 파일 저장."""
 
     dsr: bool = False
-    """결과부 (`<DSR>`) 포함 여부."""
+    """결과부 (`<DSR>`) 포함 여부. 포함 시 ECO2에서 불러올 때 오류 발생 가능."""
 
 
 _DEFAULT_ENCRYPT_CONF = EncryptConfig()
+
+
+def _encrypt_impl(
+    xml: Path,
+    header: bytes | None,
+    output: Path | None,
+    conf: EncryptConfig,
+) -> None:
+    header = header or xml.with_suffix('.header').read_bytes()
+    output = (
+        output / f'{xml.stem}.{conf.extension}'
+        if output
+        else xml.with_suffix(f'.{conf.extension}')
+    )
+
+    logger.info('xml="{}"', xml)
+    logger.debug('header="{}"', header)
+    logger.debug('output="{}"', output)
+
+    eco = Eco2(header=header, xml=xml.read_text())
+
+    if conf.sftype:
+        eco = eco.replace_sftype(conf.sftype)
+
+    if not conf.dsr:
+        eco = eco.drop_dsr()
+
+    data = eco.encrypt(xor=conf.extension == 'eco')
+    output.write_bytes(data)
 
 
 @app.command
@@ -139,21 +193,17 @@ def encrypt(
     """
     xml = _encrypt_targets(xml)
     it = Progress.iter(xml, description='Encrypting...') if len(xml) > 1 else xml
-    ext = f'.{conf.extension}'
+
+    if header is None:
+        h = None
+    else:
+        logger.info('header="{}"', header)
+        h = header.read_bytes()
 
     for x in it:
-        h = header or x.with_suffix(Eco2.HEADER_EXT)
-        dst = output / f'{x.stem}{ext}' if output else x.with_suffix(ext)
-
         try:
-            Eco2.encrypt_and_write(
-                header=h,
-                xml=x,
-                dst=dst,
-                sftype=conf.sftype,
-                write_dsr=conf.dsr,
-            )
-        except (ValueError, OSError) as e:
+            _encrypt_impl(xml=x, header=h, output=output, conf=conf)
+        except (ValueError, RuntimeError, OSError) as e:
             logger.exception(e)
 
 

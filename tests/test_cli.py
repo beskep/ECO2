@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 from eco.cli import app
-from eco.eco2 import Eco2
 from tests.data import ECO2, ROOT
 
 if TYPE_CHECKING:
@@ -22,8 +21,8 @@ def test_empty_path(tmp_path: Path):
 
 @pytest.mark.parametrize('file', ECO2)
 def test_cli_input_file(file: str, tmp_path: Path):
-    header = tmp_path.joinpath(file).with_suffix(Eco2.HEADER_EXT)
-    xml = tmp_path.joinpath(file).with_suffix(Eco2.XML_EXT)
+    header = (tmp_path / file).with_suffix('.header')
+    xml = (tmp_path / file).with_suffix('.xml')
 
     header.unlink(missing_ok=True)
     xml.unlink(missing_ok=True)
@@ -35,7 +34,7 @@ def test_cli_input_file(file: str, tmp_path: Path):
     assert header.exists(), header
     assert xml.exists(), xml
 
-    encrypted = (tmp_path / file).with_suffix(Eco2.ECO_EXT)
+    encrypted = (tmp_path / file).with_suffix('.eco')
     encrypted.unlink(missing_ok=True)
 
     # encrypt
@@ -72,8 +71,8 @@ def test_cli_input_dir(tmp_path: Path):
     app.meta(list(map(str, args)))
 
     for file in ECO2:
-        header = (tmp_path / file).with_suffix(Eco2.HEADER_EXT)
-        xml = (tmp_path / file).with_suffix(Eco2.XML_EXT)
+        header = (tmp_path / file).with_suffix('.header')
+        xml = (tmp_path / file).with_suffix('.xml')
         assert header.exists(), header
         assert xml.exists(), xml
 
@@ -89,5 +88,5 @@ def test_cli_input_dir(tmp_path: Path):
     ]
     app.meta(list(map(str, args)))
     for file in ECO2:
-        f = (tmp_path / file).with_suffix(Eco2.ECO_EXT)
+        f = (tmp_path / file).with_suffix('.eco')
         assert f.exists(), f

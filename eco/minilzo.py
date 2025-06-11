@@ -1,4 +1,4 @@
-# ruff: noqa: E402 PLC0415
+# ruff: noqa: D101 D103 E402 PLC0415
 from __future__ import annotations
 
 import sys
@@ -16,7 +16,8 @@ class MiniLzoDllNotFoundError(FileNotFoundError):
 
 
 class MiniLzoImportError(RuntimeError):
-    pass
+    def __init__(self, *args: object) -> None:
+        super().__init__('Cannot import MiniLZO.dll', *args)
 
 
 def find_dll() -> Path:
