@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal, Self
 
 from loguru import logger
 
-from eco import minilzo
+from eco2 import minilzo
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

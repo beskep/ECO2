@@ -5,8 +5,7 @@ import io
 import pytest
 from lxml.etree import _Element  # noqa: PLC2701
 
-from eco.eco2 import Eco2
-from eco.eco2xml import Eco2Xml
+from eco2 import Eco2, Eco2Xml
 from tests.data import ECO2, ECO2OD, ROOT
 
 

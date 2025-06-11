@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from eco.cli import app
+from eco2.cli import app
 from tests.data import ECO2, ROOT
 
 if TYPE_CHECKING:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from eco import minilzo
+from eco2 import minilzo
 
 minilzo.load_dll()
 

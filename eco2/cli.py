@@ -8,9 +8,9 @@ import cyclopts
 from cyclopts import App, Group, Parameter
 from loguru import logger
 
-from eco.eco2 import Eco2, Extension, SFType
-from eco.minilzo import MiniLzoImportError
-from eco.utils import LogHandler, Progress
+from eco2.eco2 import Eco2, Extension, SFType
+from eco2.minilzo import MiniLzoImportError
+from eco2.utils import LogHandler, Progress
 
 app = App(version='0.6.0', help_format='markdown')
 app.meta.group_parameters = Group('Options', sort_key=0)
