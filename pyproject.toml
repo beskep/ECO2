@@ -1,6 +1,6 @@
 [project]
 name = "ECO2"
-version = "0.6.0"
+version = "0.7.0"
 description = "효율등급인증 평가프로그램 ECO2, ECO2-OD 저장 파일 해석"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -16,14 +16,12 @@ dependencies = [
 [dependency-groups]
 dev = [
     "mypy>=1.15.0",
-    "pylint>=3.3.6",
     "pytest>=8.3.5",
     "pytest-cov>=6.0.0",
     "pytest-sugar>=1.0.0",
     "pytest-xdist>=3.7.0",
     "ruff>=0.11.2",
     "types-lxml>=2025.3.4",
-    "typos>=1.30.3",
 ]
 
 [build-system]
@@ -69,11 +67,6 @@ convention = "numpy"
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
-
-[tool.pylint.messages_control]
-confidence = ["HIGH", "CONTROL_FLOW", "INFERENCE"]
-enable = ["bad-inline-option", "useless-suppression"]
-disable = ["R", "C", "c-extension-no-member"]
 
 [tool.mypy]
 disable_error_code = ["import-untyped", "import", "var-annotated"]

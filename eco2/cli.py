@@ -18,7 +18,7 @@ from eco2.utils import LogHandler, Progress
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-app = App(version='0.6.0', help_format='markdown', help_on_error=True)
+app = App(version='0.7.0', help_format='markdown', help_on_error=True)
 app.meta.group_parameters = Group('Options', sort_key=0)
 
 
