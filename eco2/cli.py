@@ -4,13 +4,13 @@ import dataclasses as dc
 import functools
 from collections.abc import Sequence  # noqa: TC003
 from pathlib import Path  # noqa: TC003
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, ClassVar
 
 import cyclopts
 from cyclopts import App, Group, Parameter
 from loguru import logger
 
-from eco2.eco2data import Eco2, Extension, SFType
+from eco2.eco2data import Eco2, Extension, Header
 from eco2.eco2xml import Eco2Xml
 from eco2.minilzo import MiniLzoImportError
 from eco2.utils import LogHandler, Progress
@@ -63,10 +63,13 @@ class _Decryptor:
     _: dc.KW_ONLY
 
     output: Path | None = None
-    """저장 폴더. 대상 경로 아래 파일명이 원본과 같은 `.header`와 `.xml` 파일을 저장."""
+    """저장 폴더. 대상 경로 아래 파일명이 원본과 같은 `.json`과 `.xml` 파일을 저장."""
 
     header: bool = True
     """Header 파일 저장 여부."""
+
+    encoding: str = 'UTF-8'
+    """Header (json), 데이터 (xml) 저장 인코딩."""
 
     ext: _Ext = dc.field(default_factory=_Ext)
 
@@ -96,7 +99,7 @@ class _Decryptor:
     def decrypt_eco2(self, src: Path) -> None:
         name = src.stem if self.unique_stem else src.name
         dst = self.output or src.parent
-        header = dst / f'{name}.header' if self.header else None
+        header = dst / f'{name}.json' if self.header else None
         xml = dst / f'{name}.xml'
 
         logger.info('src="{}"', src)
@@ -105,13 +108,10 @@ class _Decryptor:
 
         eco = Eco2.read(src)
 
-        for key, value in eco.decode_header(eco.header):
-            logger.debug('[Header] {:9s} = {}', key, value)
-
         if header:
-            header.write_bytes(eco.header)
+            header.write_text(eco.header.dump(), encoding=self.encoding)
 
-        xml.write_text(eco.xml, encoding='UTF-8')
+        xml.write_text(eco.xml, encoding=self.encoding)
 
     def decrypt_eco2od(self, src: Path) -> None:
         name = src.stem if self.unique_stem else src.name
@@ -121,7 +121,7 @@ class _Decryptor:
         logger.info('src="{}"', src)
         logger.debug('xml="{}"', xml)
 
-        eco = Eco2Xml(src)
+        eco = Eco2Xml.read(src)
         eco.write(xml)
 
     def _decrypt(self, src: Path) -> None:
@@ -174,11 +174,13 @@ class _Encryptor:
     extension: Extension = 'eco'
     """저장할 파일 형식."""
 
-    sftype: SFType = '10'
-    """저장할 `.eco` 파일 header의 SFType 값."""
+    encoding: str = 'UTF-8'
+    """Header (json), 데이터 (xml) 해석 인코딩."""
 
-    dsr: bool = False
+    dsr: bool | None = None
     """결과부 (`<DSR>`) 포함 여부. 포함 시 ECO2에서 불러올 때 오류 발생 가능."""
+
+    DSR: ClassVar[str] = '<DSR xmlns'
 
     def __post_init__(self) -> None:
         self.xml = self._resolve_xml(self.xml)
@@ -195,12 +197,25 @@ class _Encryptor:
 
         return paths
 
+    def _read_header(self, path: Path) -> Header:
+        return Header.load(path.read_text(self.encoding))
+
+    def _read_xml(self, path: Path) -> tuple[str, str | None]:
+        xml = path.read_text(self.encoding)
+
+        if (idx := xml.find(self.DSR)) == -1:
+            return xml, None
+
+        ds = xml[: idx - 1]
+        dsr = xml[idx:]
+        return ds, dsr
+
     @functools.cached_property
-    def common_header(self) -> bytes | None:
-        return None if self.header is None else self.header.read_bytes()
+    def common_header(self) -> Header | None:
+        return None if self.header is None else self._read_header(self.header)
 
     def _encrypt(self, xml: Path) -> None:
-        header = self.common_header or xml.with_suffix('.header').read_bytes()
+        header = self.common_header or self._read_header(xml.with_suffix('.json'))
         output = (
             self.output / f'{xml.stem}.{self.extension}'
             if self.output
@@ -211,19 +226,9 @@ class _Encryptor:
         logger.debug('header="{}"', header)
         logger.debug('output="{}"', output)
 
-        try:
-            eco = Eco2(header=header, xml=xml.read_text(encoding='UTF-8'))
-        except UnicodeDecodeError:
-            eco = Eco2(header=header, xml=xml.read_text(encoding='korean'))
-
-        if self.sftype:
-            eco = eco.replace_sftype(self.sftype)
-
-        if not self.dsr:
-            eco = eco.drop_dsr()
-
-        data = eco.encrypt(xor=self.extension == 'eco')
-        output.write_bytes(data)
+        ds, dsr = self._read_xml(xml)
+        eco = Eco2(header=header, ds=ds, dsr=dsr)
+        eco.write(output, dsr=self.dsr)
 
     def __call__(self) -> None:
         it = (

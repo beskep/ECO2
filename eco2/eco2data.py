@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import dataclasses as dc
+import io
+import json
+import struct
 from itertools import cycle
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, Literal, Self
+from typing import IO, TYPE_CHECKING, ClassVar, Literal, Self
 
 from loguru import logger
 
 from eco2 import minilzo
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Generator
 
 try:  # noqa: SIM105
     minilzo.load_dll()
@@ -21,39 +24,24 @@ except minilzo.MiniLzoDllNotFoundError:
 type Extension = Literal['eco', 'tpl']
 type SFType = Literal['00', '01', '10']
 
-DS_CLOSING = '</DS>'
-DSR_OPENING = '<DSR xmlns="http://tempuri.org/DSR.xsd'
 
-
-def split_xml(text: str) -> tuple[str, str | None]:
-    """
-    xml을 DR(설계 정보), DSR(계산 결과)로 분리.
-
-    Parameters
-    ----------
-    text : str
-
-    Returns
-    -------
-    tuple[str, str | None]
-    """
-    if (i := text.find(DSR_OPENING)) == -1:
-        return text, None
-
-    ds = text[: (text.find(DS_CLOSING) + len(DS_CLOSING))]
-    dsr = text[i:]
-    return ds, dsr
+def _lf2crlf(text: str) -> str:
+    return text.replace('\r\n', '\n').replace('\n', '\r\n')
 
 
 @dc.dataclass
-class Eco2:
-    """ECO2 저장 파일 해석."""
+class Header:
+    """프로젝트 메타 정보."""
 
-    header: bytes
-    xml: str
+    SFType: str
+    UIVersion: str
+    LGVersion: str
+    Name: str
+    Desc: str
+    MakeTime: str
+    EditTime: str
 
-    KEY: ClassVar[tuple[int, ...]] = (172, 41, 85, 66)
-    HEADER: ClassVar[tuple[tuple[int, str], ...]] = (
+    KEYS: ClassVar[tuple[tuple[int, str], ...]] = (
         # SFType: Password가 있으면 b'01',
         # UserAuthType가 ADMIN, BOTH, BOTH1, BOTH2 면 b'00',
         # 이외 b'10'으로 추정
@@ -64,11 +52,82 @@ class Eco2:
         (256, 'Desc'),
         (19, 'MakeTime'),
         (19, 'EditTime'),
-        (8, 'Password'),
     )
 
+    @classmethod
+    def load(cls, data: str | bytes | bytearray) -> Self:
+        """
+        Load header data from json.
+
+        Parameters
+        ----------
+        data : str | bytes | bytearray
+
+        Returns
+        -------
+        Self
+        """
+        return cls(**json.loads(data))
+
+    def dump(self, indent: int | None = 2) -> str:
+        """
+        Dump header data to json.
+
+        Parameters
+        ----------
+        indent : int | None, optional
+
+        Returns
+        -------
+        str
+        """
+        data = {k: v.rstrip('\x00') for k, v in dc.asdict(self).items()}
+        return json.dumps(data, ensure_ascii=False, indent=indent)
+
+    def _encode(self) -> Generator[bytes]:
+        for width, key in self.KEYS:
+            value: str = getattr(self, key)
+            yield value.encode('EUC-KR').ljust(width, b'\x00')
+
+    def encode(self) -> bytes:
+        """
+        ECO2 파일에 저장하기 위한 형식으로 encode.
+
+        Returns
+        -------
+        bytes
+        """
+        return b''.join(self._encode())
+
+
+@dc.dataclass
+class Eco2:
+    """ECO2 저장 파일 해석."""
+
+    header: Header
+    """프로젝트 메타 정보 (ECO2 버전, 프로젝트명 등)"""
+
+    ds: str
+    """설계 정보 및 계산 데이터베이스"""
+
+    dsr: str | None
+    """계산 결과"""
+
+    KEY: ClassVar[tuple[int, ...]] = (172, 41, 85, 66)
+    EMPTY_DSR: ClassVar[str] = '<DSR xmlns="http://tempuri.org/DSR.xsd"></DSR>'
+
     def __post_init__(self) -> None:  # noqa: D105
-        self.xml = self.xml.replace('\r\n', '\n')
+        self.ds = self.ds.replace('\r\n', '\n')
+        if self.dsr is not None:
+            self.dsr = self.dsr.replace('\r\n', '\n')
+
+    @property
+    def xml(self) -> str:
+        """DS, DSR을 합한 xml 형식 정보."""
+        if self.dsr is None:
+            return self.ds
+
+        return f'{self.ds}\n{self.dsr}'
 
     @classmethod
     def xor(cls, data: bytes) -> bytes:
@@ -86,29 +145,48 @@ class Eco2:
         return bytes(d ^ k for d, k in zip(data, cycle(cls.KEY), strict=False))
 
     @classmethod
-    def decode_header(cls, data: bytes) -> Iterable[tuple[str, str | bytes]]:
+    def parse(cls, data: bytes | IO[bytes]) -> tuple[Header, str, str | None]:
         """
-        Header 정보 디코드.
+        ECO2 저장 파일을 Header, DS(설계), DSR(해석 결과)로 나눠 해석.
 
         Parameters
         ----------
         data : bytes
+            _description_
 
-        Yields
-        ------
-        Iterator[Iterable[tuple[str, str | bytes]]]
-            항목 이름, 값.
+        Returns
+        -------
+        tuple[Header, str, str | None]
+            Header, DS, DSR
         """
-        v: bytes | str
-        for length, name in cls.HEADER:
-            b, data = data[:length], data[length:]
+        stream = data if isinstance(data, IO) else io.BytesIO(data)
 
-            try:
-                v = b.decode('EUC-KR').rstrip('\x00')
-            except ValueError:
-                v = b
+        # header
+        header = {}
+        for length, key in Header.KEYS:
+            b = stream.read(length)
+            header[key] = b.decode('EUC-KR')
 
-            yield name, v
+        # DS
+        ds_len = struct.unpack('<q', stream.read(8))[0]
+        ds = stream.read(ds_len)
+
+        if not ds.startswith(b'<DS'):
+            logger.warning('Unexpected DS start: {}', ds)
+
+        # DSR
+        if b'</DSR>' not in data:
+            dsr_str = None
+        else:
+            dsr_len = struct.unpack('<q', stream.read(8))[0]
+            dsr = stream.read(dsr_len)
+
+            if not dsr.startswith(b'<DSR'):
+                logger.warning('Unexpected DSR start: {}', dsr)
+
+            dsr_str = dsr.decode()
+
+        return Header(**header), ds.decode(), dsr_str
 
     @classmethod
     def decrypt(cls, data: bytes, *, xor: bool, decompress: bool) -> Self:
@@ -133,18 +211,7 @@ class Eco2:
         if decompress:
             data = minilzo.decompress(data)
 
-        header_length = sum(x[0] for x in cls.HEADER)
-        header = data[:header_length]
-        xml = data[header_length:].decode(errors='ignore')
-
-        # 결과부 (<DSR>)가 존재하는 경우,
-        # <DS>와 <DSR> 사이 decode 불가능한 데이터 제거
-        # (안해도 출력엔 지장 없음)
-        ds, dsr = split_xml(xml)
-        if dsr is not None:
-            xml = f'{ds}\n{dsr}'
-
-        return cls(header, xml)
+        return cls(*cls.parse(data))
 
     @classmethod
     def read(cls, src: str | Path) -> Self:
@@ -167,62 +234,68 @@ class Eco2:
         decompress = suffix.endswith('x')
 
         raw = src.read_bytes()
+        return cls.decrypt(raw, xor=xor, decompress=decompress)
 
-        try:
-            data = cls.decrypt(raw, xor=xor, decompress=decompress)
-        except ValueError:  # pragma: no cover
-            logger.info(
-                'xor={} 설정으로 해석 실패. xor={} 설정으로 재시도.',
-                xor,
-                not xor,
-            )
-            data = cls.decrypt(raw, xor=not xor, decompress=decompress)
-
-        return data
-
-    def encrypt(self, *, xor: bool = True) -> bytes:
+    def encrypt(self, *, xor: bool, compress: bool = False) -> bytes:
         """
-        `.eco` 파일로 저장하기 위해 암호화.
+        ECO2 파일로 저장하기 위해 암호화.
 
         Parameters
         ----------
-        xor : bool, optional
+        xor : bool
             xor 적용 여부. `.eco`로 저장할 경우 적용.
+        compress : bool, optional
+            MiniLZO 압축 여부. `.ecox`, `.tplx`로 저장할 경우 적용 (오류 발생 가능).
 
         Returns
         -------
         bytes
         """
-        b = self.header + self.xml.encode('UTF-8')
+        # header
+        header = dc.replace(self.header, SFType='10' if xor else '00')
+        data = header.encode()
+
+        # DS
+        ds = _lf2crlf(self.ds).encode()
+        data += struct.pack('<q', len(ds))
+        data += ds
+
+        # DSR
+        dsr = _lf2crlf(self.dsr or self.EMPTY_DSR).encode()
+        data += struct.pack('<q', len(dsr))
+        data += dsr
 
         if xor:
-            b = self.xor(b)
+            data = self.xor(data)
+        if compress:
+            data = minilzo.compress(data)
 
-        return b
+        return data
 
-    def replace_sftype(self, sftype: SFType) -> Self:
+    def write(self, dst: str | Path, *, dsr: bool | None = None) -> None:
         """
-        Header의 SFType 수정.
+        ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`) 변환 및 저장.
 
-        ECO2 guest 계정으로 열기 위해선 SFType을 '10'으로 수정.
+        저장 경로 확장자에 따라 xor 암호화, MiniLZO 압축 여부 자동 결정.
+        **`.ecox`, `.tplx` 저장 시 오류 발생 가능**
 
         Parameters
         ----------
-        sftype : SFType
-
-        Returns
-        -------
-        Self
+        dst : str | Path
+            저장 경로.
+        dsr : bool | None
+            DSR (결과) 부분 저장 여부.
+            `None`일 경우, `.eco` 또는 `.ecox`로 저장할 때 DSR 제외.
         """
-        return dc.replace(self, header=sftype.encode() + self.header[2:])
+        dst = Path(dst)
 
-    def drop_dsr(self) -> Self:
-        """
-        결과부 (DSR) 삭제.
+        suffix = dst.suffix.lower()
+        is_eco = suffix.startswith('.eco')
+        compress = suffix.endswith('x')
 
-        Returns
-        -------
-        Self
-        """
-        ds, _dsr = split_xml(self.xml)
-        return dc.replace(self, xml=ds)
+        if dsr is None:
+            dsr = not is_eco
+
+        eco = self if dsr else dc.replace(self, dsr=None)
+        data = eco.encrypt(xor=is_eco, compress=compress)
+        dst.write_bytes(data)

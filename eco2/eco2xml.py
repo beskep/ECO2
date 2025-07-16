@@ -1,99 +1,96 @@
 from __future__ import annotations
 
+import dataclasses as dc
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from lxml import etree
 
+from eco2.eco2data import Eco2
+
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterator, Mapping
+    from collections.abc import Iterator, Mapping
 
     from lxml.etree import _Element, _ElementTree
 
 
-def _lines(
-    source: str | Path | IO[str],
-    encoding: str | None = 'UTF-8',
-    errors: str | None = 'ignore',
-) -> Generator[str]:
-    with (
-        Path(source).open('r', encoding=encoding, errors=errors)
-        if isinstance(source, str | Path)
-        else source as f
-    ):
-        yield from f
+def _split(data: bytes, encoding: str = 'UTF-8') -> tuple[str, str | None]:
+    tag = b'<DSR xmlns="http://tempuri.org/DSR.xsd">'
+    split = data.split(tag, maxsplit=1)
+
+    ds = split[0].decode(encoding)
+    dsr = None if len(split) == 1 else split[1].decode(encoding)
+
+    return ds, dsr
 
 
+@dc.dataclass
 class Eco2Xml:
     """Decrypt한 ECO2 데이터 (xml), ECO2-OD 파일 (.ECL2) 해석."""
 
-    DS = 'DS'
-    DSR = 'DSR'
+    ds: _Element
+    dsr: _Element | None
 
-    URI = 'http://tempuri.org/{}.xsd'
-    TAG_DS = '<DS xmlns="http://tempuri.org/DS.xsd">'
-    TAG_DSR = '<DSR xmlns="http://tempuri.org/DSR.xsd">'
-
-    XMLNS = 'xmlns'
-
-    def __init__(self, source: str | Path | IO[str]) -> None:
-        self.source = source
-        xml = self.read_xml(source)
-        self.ds: _Element = xml[0]
-        self.dsr: _Element | None = xml[1]
+    URI: ClassVar[str] = 'http://tempuri.org/{}.xsd'
 
     @classmethod
-    def _read_text(cls, source: str | Path | IO[str]) -> Generator[str]:
-        it = _lines(source)
+    def _create(cls, ds: str, dsr: str | None) -> Self:
+        parser = etree.XMLParser(recover=True)
 
-        # ECO2-OD 파일 앞부분 (EUC-KR 인코딩) 처리
-        if not (line := next(it).rstrip()).endswith(cls.TAG_DS):  # pragma: no cover
-            msg = f'Unexpected first line: {line}'
-            raise ValueError(msg)
+        def parse(text: str, tag: str) -> _Element:
+            return etree.fromstring(
+                text.replace('xmlns', f'xmlns:{tag}'), parser=parser
+            )
 
-        yield f'{cls.TAG_DS}\n'
-        yield from it
+        return cls(ds=parse(ds, 'DS'), dsr=None if dsr is None else parse(dsr, 'DSR'))
 
     @classmethod
-    def read_xml(cls, source: str | Path | IO[str]) -> tuple[_Element, _Element | None]:
+    def create(cls, src: str | bytes | Eco2) -> Self:
         """
-        xml을 DR, DSR로 해석.
+        XML 데이터 (str | bytes) 또는 `Eco2`로부터 생성.
 
         Parameters
         ----------
-        source : str | Path | IO[str]
+        src : str | bytes | Eco2
 
         Returns
         -------
-        tuple[_Element, _Element | None]
+        Self
         """
-        text = ''.join(cls._read_text(source))
+        match src:
+            case Eco2():
+                return cls._create(src.ds, src.dsr)
+            case str():
+                raw = src.encode()
+            case _:
+                raw = src
 
-        if (i := text.find(cls.TAG_DSR)) == -1:
-            tds = text
-            tdsr = None
-        else:
-            tds = text[:i]
-            tdsr = text[i:]
+        ds, dsr = _split(raw)
+        return cls._create(ds, dsr)
 
-        parser = etree.XMLParser(recover=True)
+    @classmethod
+    def read(cls, src: str | Path, encoding: str = 'UTF-8') -> Self:
+        """
+        ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`) 또는 XML 파일 해석.
 
-        # 입력 변수 xml
-        ds = etree.fromstring(
-            tds.replace(cls.XMLNS, f'{cls.XMLNS}:{cls.DS}'),
-            parser=parser,
-        )
+        Parameters
+        ----------
+        src : str | Path
+        encoding : str, optional
 
-        # 결과 xml
-        if tdsr is None:
-            dsr = None
-        else:
-            dsr = etree.fromstring(
-                tdsr.replace(cls.XMLNS, f'{cls.XMLNS}:{cls.DSR}'),
-                parser=parser,
-            )
+        Returns
+        -------
+        Self
+        """
+        try:
+            eco2 = Eco2.read(src)
+            ds = eco2.ds
+            dsr = eco2.dsr
+        except ValueError:
+            # XML 파일
+            ds, dsr = _split(Path(src).read_bytes(), encoding=encoding)
 
-        return ds, dsr
+        return cls._create(ds, dsr)
 
     @classmethod
     def _tostring(
@@ -106,7 +103,7 @@ class Eco2Xml:
         s = etree.tostring(obj, encoding='unicode', method='xml', **kwargs)
 
         if remove_prefix:
-            s = s.replace(f'{cls.XMLNS}:{remove_prefix}', cls.XMLNS)
+            s = s.replace(f'xmlns:{remove_prefix}', 'xmlns')
 
         return s
 
@@ -118,17 +115,17 @@ class Eco2Xml:
         -------
         str
         """
-        s = self._tostring(self.ds, remove_prefix=self.DS)
+        s = self._tostring(self.ds, remove_prefix='DS')
 
         if self.dsr is not None:
-            dsr = self._tostring(self.dsr, remove_prefix=self.DSR)
+            dsr = self._tostring(self.dsr, remove_prefix='DSR')
             s = f'{s}\n{dsr}'
 
         return s
 
     def write(self, path: str | Path, encoding: str | None = 'UTF-8') -> None:
         """
-        파일 저장.
+        XML 파일 저장.
 
         Parameters
         ----------
@@ -162,8 +159,8 @@ class Eco2Xml:
     @classmethod
     def register_namespace(cls) -> None:
         """Namespace 등록."""
-        etree.register_namespace(cls.DS, cls.URI.format(cls.DS))
-        etree.register_namespace(cls.DSR, cls.URI.format(cls.DSR))
+        etree.register_namespace('DS', cls.URI.format('DS'))
+        etree.register_namespace('DSR', cls.URI.format('DSR'))
 
 
 Eco2Xml.register_namespace()

@@ -21,7 +21,7 @@ def test_empty_path(tmp_path: Path):
 
 @pytest.mark.parametrize('file', ECO2)
 def test_cli_input_file(file: str, tmp_path: Path):
-    header = (tmp_path / file).with_suffix('.header')
+    header = (tmp_path / file).with_suffix('.json')
     xml = (tmp_path / file).with_suffix('.xml')
 
     header.unlink(missing_ok=True)
@@ -46,8 +46,6 @@ def test_cli_input_file(file: str, tmp_path: Path):
         header,
         '--output',
         tmp_path,
-        '--sftype',
-        '10',
         '--dsr',
     ]
     app.meta(list(map(str, args)))
@@ -60,32 +58,16 @@ def test_cli_input_file(file: str, tmp_path: Path):
 
 
 def test_cli_input_dir(tmp_path: Path):
-    args = [
-        '--debug',
-        'decrypt',
-        ROOT,
-        '--output',
-        tmp_path,
-        '--header',
-    ]
+    args = ['--debug', 'decrypt', ROOT, '--output', tmp_path, '--header']
     app.meta(list(map(str, args)))
 
     for file in ECO2:
-        header = (tmp_path / file).with_suffix('.header')
+        header = (tmp_path / file).with_suffix('.json')
         xml = (tmp_path / file).with_suffix('.xml')
         assert header.exists(), header
         assert xml.exists(), xml
 
-    args = [
-        '--debug',
-        'encrypt',
-        tmp_path,
-        '--output',
-        tmp_path,
-        '--sftype',
-        '10',
-        '--no-dsr',
-    ]
+    args = ['--debug', 'encrypt', tmp_path, '--output', tmp_path, '--no-dsr']
     app.meta(list(map(str, args)))
     for file in ECO2:
         f = (tmp_path / file).with_suffix('.eco')
