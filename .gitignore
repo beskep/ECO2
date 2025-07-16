@@ -55,7 +55,8 @@ venv.bak/
 bin/
 obj/
 .vs/
+config.toml
 *.log
-*.header
+*.json
 *.xml
 *.sln

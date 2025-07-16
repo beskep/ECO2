@@ -25,7 +25,7 @@ if __name__ == '__main__':
     }
 
     executables = [
-        Executable(script=r'eco\cli.py', target_name='ECO'),
+        Executable(script=r'eco2\cli.py', target_name='eco2'),
     ]
 
     setup(

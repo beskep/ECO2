@@ -4,7 +4,7 @@ import dataclasses as dc
 import functools
 from collections.abc import Sequence  # noqa: TC003
 from pathlib import Path  # noqa: TC003
-from typing import TYPE_CHECKING, Annotated, ClassVar
+from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 
 import cyclopts
 from cyclopts import App, Group, Parameter
@@ -18,7 +18,25 @@ from eco2.utils import LogHandler, Progress
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-app = App(version='0.7.0', help_format='markdown', help_on_error=True)
+
+def _all_unique[T](iterable: Iterable[T]) -> bool:
+    seen: set[T] = set()
+
+    for x in iterable:
+        if x in seen:
+            return False
+
+        seen.add(x)
+
+    return True
+
+
+app = App(
+    version='0.7.0',
+    config=cyclopts.config.Toml('config.toml'),
+    help_format='markdown',
+    help_on_error=True,
+)
 app.meta.group_parameters = Group('Options', sort_key=0)
 
 
@@ -32,16 +50,58 @@ def launcher(
     app(tokens)
 
 
-def _all_unique[T](iterable: Iterable[T]) -> bool:
-    seen: set[T] = set()
+@cyclopts.Parameter(name='*')
+@dc.dataclass
+class _Converter:
+    target: Literal['eco', 'tpl']
+    input_: Annotated[tuple[Path, ...], Parameter(negative=[])]
 
-    for x in iterable:
-        if x in seen:
-            return False
+    _: dc.KW_ONLY
 
-        seen.add(x)
+    output: Path | None = None
 
-    return True
+    def __post_init__(self) -> None:
+        self.input_ = tuple(self._resolve_input(self.input_))
+
+    def _resolve_input(self, paths: Sequence[Path]) -> Sequence[Path]:
+        if len(paths) != 1 or not paths[0].is_dir():
+            return paths
+
+        ext = {'.eco', '.ecox'} if self.target == 'tpl' else {'.tpl', '.tplx'}
+        directory = paths[0]
+        paths = tuple(
+            x for x in directory.glob('*') if x.is_file() and x.suffix.lower() in ext
+        )
+
+        if not paths:
+            msg = f'다음 경로에서 파일을 찾지 못함: "{directory.absolute()}"'
+            raise FileNotFoundError(msg)
+
+        return paths
+
+    def __call__(self) -> None:
+        it = (
+            Progress.iter(self.input_, description='Encrypting...')
+            if len(self.input_) > 1
+            else self.input_
+        )
+
+        for src in it:
+            dst = self.output or src.parent / f'{src.stem}.{self.target}'
+            logger.info('dst="{}"', dst)
+
+            if dst.exists():
+                logger.error('파일이 이미 존재합니다: "{}"', dst)
+                continue
+
+            eco = Eco2.read(src)
+            eco.write(dst)
+
+
+@app.command
+def convert(converter: _Converter) -> None:
+    """`.eco`, `.ecox`를 `.tpl`로, 또는 `.tpl`, `.tplx`를 `.eco`로 변환."""
+    converter()
 
 
 @dc.dataclass
