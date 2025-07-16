@@ -32,7 +32,7 @@ def _all_unique[T](iterable: Iterable[T]) -> bool:
 
 
 app = App(
-    version='0.7.0',
+    version='0.8.0',
     config=cyclopts.config.Toml('config.toml'),
     help_format='markdown',
     help_on_error=True,

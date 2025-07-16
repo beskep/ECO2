@@ -1,6 +1,6 @@
 [project]
 name = "ECO2"
-version = "0.7.0"
+version = "0.8.0"
 description = "효율등급인증 평가프로그램 ECO2, ECO2-OD 저장 파일 해석"
 readme = "README.md"
 requires-python = ">=3.12"
