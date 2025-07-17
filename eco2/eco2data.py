@@ -164,25 +164,23 @@ class Eco2:
             header[key] = b.decode('EUC-KR')
 
         # DS
-        ds_len = struct.unpack('<q', stream.read(8))[0]
-        ds = stream.read(ds_len)
+        length = struct.unpack('<q', stream.read(8))[0]
+        ds = stream.read(length).decode()
 
-        if not ds.startswith(b'<DS'):
-            logger.warning('Unexpected DS start: {}', ds)
+        if not ds.startswith('<DS'):
+            logger.warning('Unexpected DS start: {}', ds.split('\n')[0])
 
         # DSR
         if b'</DSR>' not in data:
-            dsr_str = None
+            dsr = None
         else:
-            dsr_len = struct.unpack('<q', stream.read(8))[0]
-            dsr = stream.read(dsr_len)
+            length = struct.unpack('<q', stream.read(8))[0]
+            dsr = stream.read(length).decode()
 
-            if not dsr.startswith(b'<DSR'):
-                logger.warning('Unexpected DSR start: {}', dsr)
+            if not dsr.startswith('<DSR'):
+                logger.warning('Unexpected DSR start: {}', dsr.split('\n')[0])
 
-            dsr_str = dsr.decode()
-
-        return Header(**header), ds.decode(), dsr_str
+        return Header(**header), ds, dsr
 
     @classmethod
     def decrypt(cls, data: bytes, *, xor: bool, decompress: bool) -> Self:
