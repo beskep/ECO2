@@ -6,7 +6,7 @@ import json
 import struct
 from itertools import cycle
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, ClassVar, Literal, Self
+from typing import IO, TYPE_CHECKING, ClassVar, Self
 
 from loguru import logger
 
@@ -19,10 +19,6 @@ try:  # noqa: SIM105
     minilzo.load_dll()
 except minilzo.MiniLzoDllNotFoundError:
     pass
-
-
-type Extension = Literal['eco', 'tpl']
-type SFType = Literal['00', '01', '10']
 
 
 def _lf2crlf(text: str) -> str:

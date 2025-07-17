@@ -10,7 +10,7 @@ import cyclopts
 from cyclopts import App, Group, Parameter
 from loguru import logger
 
-from eco2.eco2data import Eco2, Extension, Header
+from eco2.eco2data import Eco2, Header
 from eco2.eco2xml import Eco2Xml
 from eco2.minilzo import MiniLzoImportError
 from eco2.utils import LogHandler, Progress
@@ -231,7 +231,7 @@ class _Encryptor:
     output: Path | None = None
     """저장 폴더. 대상 경로 아래 xml 파일과 이름이 같은 `.eco` 파일 저장."""
 
-    extension: Extension = 'eco'
+    extension: Literal['eco', 'tpl'] = 'eco'
     """저장할 파일 형식."""
 
     encoding: str = 'UTF-8'

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from . import minilzo
 from .cli import app
-from .eco2data import Eco2, SFType
+from .eco2data import Eco2
 from .eco2xml import Eco2Xml
 
-__all__ = ['Eco2', 'Eco2Xml', 'SFType', 'app', 'minilzo']
+__all__ = ['Eco2', 'Eco2Xml', 'app', 'minilzo']
