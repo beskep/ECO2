@@ -161,7 +161,7 @@ class Eco2:
         header = {}
         for length, key in Header.KEYS:
             b = stream.read(length)
-            header[key] = b.decode('EUC-KR')
+            header[key] = b.decode('EUC-KR', errors='ignore')
 
         # DS
         length = struct.unpack('<q', stream.read(8))[0]
