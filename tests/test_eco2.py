@@ -33,6 +33,7 @@ def test_eco2xml(file: str):
         assert isinstance(xml.ds, _Element)
         assert xml.dsr is None or isinstance(xml.dsr, _Element)
         assert next(xml.iterfind('weather_cha')) is not None
+        assert '<DS xmlns="http://tempuri.org/DS.xsd">' in xml.tostring()
 
 
 @pytest.mark.parametrize('file', ECO2OD)

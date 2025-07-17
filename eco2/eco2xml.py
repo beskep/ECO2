@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses as dc
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from lxml import etree
 
@@ -22,6 +22,20 @@ def _split(data: bytes, encoding: str = 'UTF-8') -> tuple[str, str | None]:
     dsr = None if len(split) == 1 else split[1].decode(encoding)
 
     return ds, dsr
+
+
+def _tostring(
+    obj: _Element | _ElementTree,
+    /,
+    remove_namespace: str | None = None,
+    **kwargs: Any,
+) -> str:
+    text: str = etree.tostring(obj, encoding='unicode', method='xml', **kwargs)
+
+    if remove_namespace:
+        text = text.replace(f'xmlns:{remove_namespace}', 'xmlns')
+
+    return text
 
 
 @dc.dataclass
@@ -92,36 +106,41 @@ class Eco2Xml:
 
         return cls._create(ds, dsr)
 
-    @classmethod
-    def _tostring(
-        cls,
-        obj: _Element | _ElementTree,
-        /,
-        remove_prefix: str | None = None,
-        **kwargs: Any,
-    ) -> str:
-        s = etree.tostring(obj, encoding='unicode', method='xml', **kwargs)
+    def _tostring(self, namespace: Literal['DS', 'DSR'], /) -> str:
+        if (element := self.ds if namespace == 'DS' else self.dsr) is None:
+            return ''
 
-        if remove_prefix:
-            s = s.replace(f'xmlns:{remove_prefix}', 'xmlns')
+        return _tostring(element, remove_namespace=namespace)
 
-        return s
-
-    def tostring(self) -> str:
+    def tostring(self, namespace: Literal['DS', 'DSR'] | None = None) -> str:
         """
-        str으로 변환.
+        XML string으로 변환.
+
+        Parameters
+        ----------
+        namespace : Literal['DS', 'DSR'] | None, optional
+            변환 대상. `None`인 경우, DS와 DSR을 합한 문자열 반환.
 
         Returns
         -------
         str
+
+        Raises
+        ------
+        ValueError
+            Namespace 지정 오류.
         """
-        s = self._tostring(self.ds, remove_prefix='DS')
+        match namespace:
+            case 'DS' | 'DSR':
+                return self._tostring(namespace)
+            case None:
+                txt = self._tostring('DS')
+                if dsr := self._tostring('DSR'):
+                    txt = f'{txt}\n{dsr}'
 
-        if self.dsr is not None:
-            dsr = self._tostring(self.dsr, remove_prefix='DSR')
-            s = f'{s}\n{dsr}'
-
-        return s
+                return txt
+            case _:
+                raise ValueError(namespace)
 
     def write(self, path: str | Path, encoding: str | None = 'UTF-8') -> None:
         """
