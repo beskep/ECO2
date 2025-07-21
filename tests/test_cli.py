@@ -1,14 +1,22 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+import shutil
+from pathlib import Path
 
 import pytest
 
 from eco2.cli import app
 from tests.data import ECO2, ROOT
 
-if TYPE_CHECKING:
-    from pathlib import Path
+
+def test_convert(tmp_path: Path):
+    for file in ECO2:
+        shutil.copy2(ROOT / file, tmp_path)
+
+    app(['convert', str(tmp_path)])
+
+    for src in ECO2:
+        ext = '.eco' if Path(src).suffix.lower().startswith('.tpl') else '.tpl'
+        dst = (tmp_path / src).with_suffix(ext)
+        assert dst.exists(), dst
 
 
 def test_empty_path(tmp_path: Path):

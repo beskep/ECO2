@@ -53,12 +53,12 @@ def launcher(
 @cyclopts.Parameter(name='*')
 @dc.dataclass
 class _Converter:
-    target: Literal['eco', 'tpl']
     input_: Annotated[tuple[Path, ...], Parameter(negative=[])]
 
     _: dc.KW_ONLY
 
     output: Path | None = None
+    target: Sequence[str] = ('.eco', '.ecox', '.tpl', '.tplx')
 
     def __post_init__(self) -> None:
         self.input_ = tuple(self._resolve_input(self.input_))
@@ -67,10 +67,11 @@ class _Converter:
         if len(paths) != 1 or not paths[0].is_dir():
             return paths
 
-        ext = {'.eco', '.ecox'} if self.target == 'tpl' else {'.tpl', '.tplx'}
         directory = paths[0]
         paths = tuple(
-            x for x in directory.glob('*') if x.is_file() and x.suffix.lower() in ext
+            x
+            for x in directory.glob('*')
+            if x.is_file() and x.suffix.lower() in self.target
         )
 
         if not paths:
@@ -87,12 +88,14 @@ class _Converter:
         )
 
         for src in it:
-            dst = self.output or src.parent / f'{src.stem}.{self.target}'
-            logger.info('dst="{}"', dst)
+            ext = 'eco' if src.suffix.lower().startswith('.tpl') else 'tpl'
+            dst = self.output or src.parent / f'{src.stem}.{ext}'
 
             if dst.exists():
                 logger.error('파일이 이미 존재합니다: "{}"', dst)
                 continue
+
+            logger.info('dst="{}"', dst)
 
             eco = Eco2.read(src)
             eco.write(dst)
