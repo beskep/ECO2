@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses as dc
+import struct
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
@@ -100,7 +101,11 @@ class Eco2Xml:
             eco2 = Eco2.read(src)
             ds = eco2.ds
             dsr = eco2.dsr
-        except ValueError:
+        except (ValueError, struct.error):
+            ds = None
+            dsr = None
+
+        if ds is None or not ds.startswith('<DS'):
             # XML 파일
             ds, dsr = _split(Path(src).read_bytes(), encoding=encoding)
 
