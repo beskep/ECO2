@@ -1,6 +1,4 @@
 # ruff: noqa: D101 D103 E402 PLC0415
-from __future__ import annotations
-
 import sys
 from pathlib import Path
 

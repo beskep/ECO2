@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import pytest
 from lxml.etree import _Element  # noqa: PLC2701
 

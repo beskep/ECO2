@@ -55,6 +55,7 @@ extend-safe-fixes = [
     "PT", # flake8-pytest-style
     "TC", # flake8-type-checking
 ]
+future-annotations = true
 
 [tool.ruff.lint.extend-per-file-ignores]
 "tests/**" = ["ANN", "D"]
@@ -64,9 +65,6 @@ allow-star-arg-any = true
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
-
-[tool.ruff.lint.isort]
-required-imports = ["from __future__ import annotations"]
 
 [tool.mypy]
 disable_error_code = ["import-untyped", "import", "var-annotated"]

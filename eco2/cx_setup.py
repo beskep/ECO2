@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import sysconfig
 import tomllib
 from pathlib import Path
