@@ -12,7 +12,7 @@ from eco2.eco2data import Eco2
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
 
-    from lxml.etree import _Element, _ElementTree
+    from lxml.etree import _Element
 
 
 def _split(data: bytes, encoding: str = 'UTF-8') -> tuple[str, str | None]:
@@ -23,20 +23,6 @@ def _split(data: bytes, encoding: str = 'UTF-8') -> tuple[str, str | None]:
     dsr = None if len(split) == 1 else (tag + split[1]).decode(encoding)
 
     return ds, dsr
-
-
-def _tostring(
-    obj: _Element | _ElementTree,
-    /,
-    remove_namespace: str | None = None,
-    **kwargs: Any,
-) -> str:
-    text: str = etree.tostring(obj, encoding='unicode', method='xml', **kwargs)
-
-    if remove_namespace:
-        text = text.replace(f'xmlns:{remove_namespace}', 'xmlns')
-
-    return text
 
 
 @dc.dataclass
@@ -53,9 +39,9 @@ class Eco2Xml:
         parser = etree.XMLParser(recover=True)
 
         def parse(text: str, tag: str) -> _Element:
-            return etree.fromstring(
-                text.replace('xmlns', f'xmlns:{tag}'), parser=parser
-            )
+            uri = cls.URI.format(tag)
+            text = text.replace(f'<{tag} xmlns="{uri}"', f'<{tag}')
+            return etree.fromstring(text, parser=parser)
 
         return cls(ds=parse(ds, 'DS'), dsr=None if dsr is None else parse(dsr, 'DSR'))
 
@@ -111,13 +97,15 @@ class Eco2Xml:
 
         return cls._create(ds, dsr)
 
-    def _tostring(self, namespace: Literal['DS', 'DSR'], /) -> str:
-        if (element := self.ds if namespace == 'DS' else self.dsr) is None:
+    def _tostring(self, tag: Literal['DS', 'DSR'], /, **kwargs: Any) -> str:
+        if (element := self.ds if tag == 'DS' else self.dsr) is None:
             return ''
 
-        return _tostring(element, remove_namespace=namespace)
+        uri = self.URI.format(tag)
+        text: str = etree.tostring(element, method='xml', encoding='unicode', **kwargs)
+        return text.replace(f'<{tag}', f'<{tag} xmlns="{uri}"')
 
-    def tostring(self, namespace: Literal['DS', 'DSR'] | None = None) -> str:
+    def tostring(self, tag: Literal['DS', 'DSR'] | None = None) -> str:
         """
         XML string으로 변환.
 
@@ -135,9 +123,9 @@ class Eco2Xml:
         ValueError
             Namespace 지정 오류.
         """
-        match namespace:
+        match tag:
             case 'DS' | 'DSR':
-                return self._tostring(namespace)
+                return self._tostring(tag)
             case None:
                 txt = self._tostring('DS')
                 if dsr := self._tostring('DSR'):
@@ -145,7 +133,7 @@ class Eco2Xml:
 
                 return txt
             case _:
-                raise ValueError(namespace)
+                raise ValueError(tag)
 
     def write(self, path: str | Path, encoding: str | None = 'UTF-8') -> None:
         """
@@ -179,12 +167,3 @@ class Eco2Xml:
 
         if self.dsr is not None:
             yield from self.dsr.iterfind(path, namespaces=namespaces)
-
-    @classmethod
-    def register_namespace(cls) -> None:
-        """Namespace 등록."""
-        etree.register_namespace('DS', cls.URI.format('DS'))
-        etree.register_namespace('DSR', cls.URI.format('DSR'))
-
-
-Eco2Xml.register_namespace()
