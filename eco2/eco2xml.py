@@ -20,7 +20,7 @@ def _split(data: bytes, encoding: str = 'UTF-8') -> tuple[str, str | None]:
     split = data.split(tag, maxsplit=1)
 
     ds = split[0].decode(encoding)
-    dsr = None if len(split) == 1 else split[1].decode(encoding)
+    dsr = None if len(split) == 1 else (tag + split[1]).decode(encoding)
 
     return ds, dsr
 
