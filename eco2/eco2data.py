@@ -51,6 +51,26 @@ class Header:
     )
 
     @classmethod
+    def read(cls, stream: IO[bytes]) -> Self:
+        """
+        Read from stream.
+
+        Parameters
+        ----------
+        stream : IO[bytes]
+
+        Returns
+        -------
+        Self
+        """
+        header = {}
+        for length, key in cls.KEYS:
+            raw = stream.read(length)
+            header[key] = raw.decode('EUC-KR', errors='ignore')
+
+        return cls(**header)
+
+    @classmethod
     def load(cls, data: str | bytes | bytearray) -> Self:
         """
         Load header data from json.
@@ -158,10 +178,7 @@ class Eco2:
         stream = data if isinstance(data, IO) else io.BytesIO(data)
 
         # header
-        header = {}
-        for length, key in Header.KEYS:
-            b = stream.read(length)
-            header[key] = b.decode('EUC-KR', errors='ignore')
+        header = Header.read(stream)
 
         # DS
         length = struct.unpack('<q', stream.read(8))[0]
@@ -180,7 +197,7 @@ class Eco2:
             if not dsr.startswith('<DSR'):
                 logger.warning('Unexpected DSR start: {}', dsr.split('\n')[0])
 
-        return Header(**header), ds, dsr
+        return header, ds, dsr
 
     @classmethod
     def decrypt(cls, data: bytes, *, xor: bool, decompress: bool) -> Self:
