@@ -10,8 +10,7 @@ import cyclopts
 from cyclopts import App, Group, Parameter
 from loguru import logger
 
-from eco2.eco2data import Eco2, Header
-from eco2.eco2xml import Eco2Xml
+from eco2.core import Eco2, Eco2Xml, Header
 from eco2.minilzo import MiniLzoImportError
 from eco2.utils import LogHandler, Progress
 

@@ -1,3 +1,5 @@
+"""ECO2 저장 파일의 XML 정보 수정."""
+
 from __future__ import annotations
 
 import dataclasses as dc
@@ -8,8 +10,7 @@ import more_itertools as mi
 from loguru import logger
 from lxml import etree
 
-from eco2 import Eco2
-from eco2 import Eco2Xml as _Eco2Xml
+from eco2 import core
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -130,7 +131,7 @@ class Area:
 
 
 @dc.dataclass
-class Eco2Xml(_Eco2Xml):
+class Eco2Xml(core.Eco2Xml):
     """XML 개별 element 수정."""
 
     @functools.cached_property
@@ -285,8 +286,8 @@ class Eco2Xml(_Eco2Xml):
 class Eco2Editor:
     """ECO2 파일 수정."""
 
-    def __init__(self, src: str | Path | Eco2) -> None:
-        self.eco2 = src if isinstance(src, Eco2) else Eco2.read(src)
+    def __init__(self, src: str | Path | core.Eco2) -> None:
+        self.eco2 = src if isinstance(src, core.Eco2) else core.Eco2.read(src)
         self.xml = Eco2Xml.create(self.eco2)
 
     def write(self, path: str | Path, *, dsr: bool | None = False) -> None:
@@ -298,7 +299,7 @@ class Eco2Editor:
         path : str | Path
         dsr : bool | None, optional
         """
-        eco2 = Eco2(
+        eco2 = core.Eco2(
             header=self.eco2.header,
             ds=self.xml.tostring('DS'),
             dsr=self.xml.tostring('DSR'),
@@ -369,14 +370,11 @@ class Eco2Editor:
         Returns
         -------
         Self
-            _description_
 
         Raises
         ------
         EditorError
-            _description_
         ElementNotFoundError
-            _description_
         """
         if uvalue is None and shgc is None:
             msg = f'{uvalue=}, {shgc=}'

@@ -2,7 +2,6 @@
 
 from . import minilzo
 from .cli import app
-from .eco2data import Eco2
-from .eco2xml import Eco2Xml
+from .core import Eco2, Eco2Xml, Header
 
-__all__ = ['Eco2', 'Eco2Xml', 'app', 'minilzo']
+__all__ = ['Eco2', 'Eco2Xml', 'Header', 'app', 'minilzo']
