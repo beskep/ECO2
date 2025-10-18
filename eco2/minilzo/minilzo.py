@@ -1,4 +1,4 @@
-# ruff: noqa: D101 D103 E402 PLC0415
+# ruff: noqa: D101 D103 PLC0415
 import sys
 from pathlib import Path
 
@@ -6,7 +6,7 @@ import pythonnet
 
 pythonnet.load('coreclr')
 
-import clr
+import clr  # noqa: E402
 
 
 class MiniLzoDllNotFoundError(FileNotFoundError):
@@ -31,12 +31,12 @@ def find_dll() -> Path:
 
 def load_dll(path: str | Path | None = None) -> None:
     path = path or find_dll()
-    clr.AddReference(str(path))  # pylint: disable=no-member # pyright: ignore[reportAttributeAccessIssue]
+    clr.AddReference(str(path))
 
 
 def compress(data: bytes) -> bytes:
     try:
-        from MiniLZO import MiniLZO  # pyright: ignore[reportMissingImports]
+        from MiniLZO import MiniLZO
     except ImportError:
         raise MiniLzoImportError from None
 
@@ -45,7 +45,7 @@ def compress(data: bytes) -> bytes:
 
 def decompress(data: bytes) -> bytes:
     try:
-        from MiniLZO import MiniLZO  # pyright: ignore[reportMissingImports]
+        from MiniLZO import MiniLZO
     except ImportError:
         raise MiniLzoImportError from None
 
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     @app.default
     def test() -> None:
         load_dll()
-        b = b'42' * 42
+        b = b'forty two'
         c = compress(b)
         cnsl.print(f'original    ={b!r}')
         cnsl.print(f'compressed  ={c!r}')
