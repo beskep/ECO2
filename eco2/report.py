@@ -1,3 +1,5 @@
+"""ECO2 계산 결과 해석."""
+
 from __future__ import annotations
 
 import contextlib
