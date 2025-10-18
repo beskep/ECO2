@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from lxml import etree
 
-from eco2.eco2data import Eco2
+from eco2.core import Eco2
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Mapping
