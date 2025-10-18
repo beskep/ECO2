@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 def _key_value(data: str) -> tuple[None, float] | tuple[str, None]:
     try:
-        return (None, float(data))
+        return (None, float(data.replace(',', '')))
     except ValueError:
         return (data.rstrip(' :'), None)
 
