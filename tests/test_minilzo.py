@@ -11,7 +11,7 @@ def test_load():
     assert MiniLZO.TheAnswer() == 42  # noqa: PLR2004
 
 
-@pytest.mark.parametrize('data', [b'', b'42' * 2])
+@pytest.mark.parametrize('data', [b'', b'4242', b'forty two'])
 def test_compress(data):
     compressed = minilzo.compress(data)
     decompressed = minilzo.decompress(compressed)
