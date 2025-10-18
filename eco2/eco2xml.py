@@ -111,7 +111,7 @@ class Eco2Xml:
 
         Parameters
         ----------
-        namespace : Literal['DS', 'DSR'] | None, optional
+        tag : Literal['DS', 'DSR'] | None, optional
             변환 대상. `None`인 경우, DS와 DSR을 합한 문자열 반환.
 
         Returns
