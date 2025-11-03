@@ -5,7 +5,7 @@ description = "효율등급인증 평가프로그램 ECO2, ECO2-OD 저장 파일
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "cyclopts>=3.11.1",
+    "cyclopts>=4.2.1",
     "loguru>=0.7.3",
     "lxml>=5.3.1",
     "pythonnet>=3.0.5",
