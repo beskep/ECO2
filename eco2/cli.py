@@ -1,3 +1,4 @@
+# ruff: noqa: D102 D105
 from __future__ import annotations
 
 import dataclasses as dc
@@ -35,6 +36,7 @@ app = App(
     config=cyclopts.config.Toml('config.toml'),
     help_format='markdown',
     help_on_error=True,
+    result_action=['call_if_callable', 'print_non_int_sys_exit'],
 )
 app.meta.group_parameters = Group('Options', sort_key=0)
 
@@ -46,12 +48,14 @@ def launcher(
 ) -> None:
     """Meta app launcher."""
     LogHandler.set(level=10 if debug else 20)
-    app(tokens)
+    return app(tokens)
 
 
-@cyclopts.Parameter(name='*')
+@app.command
 @dc.dataclass
-class _Converter:
+class Convert:
+    """`.eco`, `.ecox`를 `.tpl`로, 또는 `.tpl`, `.tplx`를 `.eco`로 변환."""
+
     input_: Annotated[tuple[Path, ...], Parameter(negative=[])]
 
     _: dc.KW_ONLY
@@ -100,12 +104,6 @@ class _Converter:
             eco.write(dst)
 
 
-@app.command
-def convert(converter: _Converter) -> None:
-    """`.eco`, `.ecox`를 `.tpl`로, 또는 `.tpl`, `.tplx`를 `.eco`로 변환."""
-    converter()
-
-
 @dc.dataclass
 class _Ext:
     eco2: Sequence[str] = ('.eco', '.ecox', '.tpl', '.tplx')
@@ -115,9 +113,11 @@ class _Ext:
     """대상 ECO2-OD 파일 확장자 (대소문자 미구분.)"""
 
 
-@cyclopts.Parameter(name='*')
+@app.command
 @dc.dataclass
-class _Decryptor:
+class Decrypt:
+    """ECO2, ECO2-OD 저장 파일을 해석해 header와 xml 파일 저장."""
+
     input_: Annotated[tuple[Path, ...], Parameter(negative=[])]
     """해석할 ECO2 저장 파일 목록.
     폴더 하나를 지정하면 대상 내 모든 ECO2 파일을 해석함."""
@@ -194,7 +194,8 @@ class _Decryptor:
         elif ext in self.ext.eco2od:
             self.decrypt_eco2od(src)
         else:
-            raise ValueError(src)
+            msg = f'Unknown file extension: "{ext}"'
+            raise ValueError(msg)
 
     def __call__(self) -> None:
         it = (
@@ -213,14 +214,10 @@ class _Decryptor:
 
 
 @app.command
-def decrypt(decrypter: _Decryptor) -> None:
-    """ECO2, ECO2-OD 저장 파일을 해석해 header와 xml 파일 저장."""
-    decrypter()
-
-
-@cyclopts.Parameter(name='*')
 @dc.dataclass
-class _Encryptor:
+class Encrypt:
+    """header와 xml 파일을 암호화해 `.eco` 또는 `.tpl` 파일로 변환."""
+
     xml: Annotated[tuple[Path, ...], Parameter(negative=[])]
     """대상 xml 파일. 폴더를 지정하는 경우 해당 폴더 내 모든 xml 파일을 암호화."""
 
@@ -307,12 +304,6 @@ class _Encryptor:
                 self._encrypt(xml)
             except (ValueError, RuntimeError, OSError) as e:
                 logger.exception(e)
-
-
-@app.command
-def encrypt(encryptor: _Encryptor) -> None:
-    """header와 xml 파일을 암호화해 `.eco` 파일로 변환."""
-    encryptor()
 
 
 if __name__ == '__main__':
