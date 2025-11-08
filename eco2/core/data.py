@@ -285,7 +285,7 @@ class Eco2:
 
     def write(self, dst: str | Path, *, dsr: bool | None = None) -> None:
         """
-        ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`) 변환 및 저장.
+        ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`, `.ecl2`) 변환 및 저장.
 
         저장 경로 확장자에 따라 xor 암호화, MiniLZO 압축 여부 자동 결정.
         **`.ecox`, `.tplx` 저장 시 오류 발생 가능**

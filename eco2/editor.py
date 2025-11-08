@@ -292,7 +292,7 @@ class Eco2Editor:
 
     def write(self, path: str | Path, *, dsr: bool | None = False) -> None:
         """
-        `.eco`, `.tpl` 파일 저장 (`.ecox`, `.tplx` 미지원).
+        `.eco`, `.tpl`, `.ecl2` 파일 저장 (`.ecox`, `.tplx` 미지원).
 
         Parameters
         ----------
