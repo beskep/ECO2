@@ -122,7 +122,8 @@ class GraphReport(BaseReport):
 
         building_type = df.columns[0]
         monthly = (
-            df.rename({building_type: 'energy'})
+            df
+            .rename({building_type: 'energy'})
             .with_columns(pl.all().exclude('energy').cast(pl.Float64))
             .unpivot(index='energy', variable_name='month')
             .with_columns(
@@ -147,10 +148,12 @@ class GraphReport(BaseReport):
         df.columns = ['variable', *columns[1:]]
 
         return (
-            df.with_columns(pl.all().exclude('variable').cast(pl.Float64))
+            df
+            .with_columns(pl.all().exclude('variable').cast(pl.Float64))
             .unpivot(index='variable', variable_name='energy')
             .with_columns(
-                pl.col('variable')
+                pl
+                .col('variable')
                 .replace_strict('CO2발생량', 'kgCO₂/m²', default='kWh/m²yr')
                 .alias('unit')
             )
@@ -159,7 +162,8 @@ class GraphReport(BaseReport):
 
     def _stats(self) -> pl.DataFrame:
         return (
-            pl.DataFrame(
+            pl
+            .DataFrame(
                 list(self.stats.items()),
                 schema=[('variable', pl.String), ('value', pl.Float64)],
                 orient='row',
@@ -167,7 +171,8 @@ class GraphReport(BaseReport):
             .select(
                 pl.lit('기타').alias('category'),
                 pl.all(),
-                pl.col('variable')
+                pl
+                .col('variable')
                 .str.extract('^((단위면적당)|(에너지자립률)).*')
                 .replace_strict({'단위면적당': 'kWh/m²yr', '에너지자립률': '%'})
                 .alias('unit'),
@@ -197,7 +202,8 @@ class UploadReport(BaseReport):
     def raw(self) -> pl.DataFrame:
         """엑셀 원본."""
         raw = super().raw.with_columns(
-            pl.col('단위')
+            pl
+            .col('단위')
             .replace({'-': None})
             .str.replace_many(['㎡', '년', '•'], ['m²', 'yr', ''])
         )
@@ -214,14 +220,16 @@ class UploadReport(BaseReport):
     def data(self) -> pl.DataFrame:
         """추출, 가공한 데이터."""
         m = (
-            pl.col('값')
+            pl
+            .col('값')
             .str.ends_with('%')
             .replace_strict({True: 0.01, False: 1.0}, return_dtype=pl.Float64)
         )
         return (
             (self.raw)
             .with_columns(
-                pl.col('값')
+                pl
+                .col('값')
                 .str.replace_all(',', '')
                 .str.strip_suffix('%')
                 .cast(pl.Float64, strict=False)
@@ -253,10 +261,12 @@ class CalculationsReport(BaseReport):
     def data(self) -> pl.DataFrame:
         """추출, 가공한 데이터."""
         return (
-            self.raw.with_row_index()
+            self.raw
+            .with_row_index()
             .rename({'에너지요구량': '변수', '[단위]': '단위', '[기호]': '기호&계수'})
             .with_columns(
-                pl.when((pl.col('index') == 0) | (pl.col('합계') == '합계'))
+                pl
+                .when((pl.col('index') == 0) | (pl.col('합계') == '합계'))
                 .then(pl.col('변수'))
                 .otherwise(pl.lit(None))
                 .alias('구분')
