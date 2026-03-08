@@ -1,36 +1,37 @@
 [project]
-name = "ECO2"
-version = "0.8.0"
-description = "효율등급인증 평가프로그램 ECO2, ECO2-OD 저장 파일 해석"
-readme = "README.md"
+name            = "ECO2"
+version         = "0.8.0"
+description     = "효율등급인증 평가프로그램 ECO2, ECO2-OD 저장 파일 해석"
+readme          = "README.md"
 requires-python = ">=3.12"
-dependencies = [
-    "cyclopts>=4.2.1",
-    "loguru>=0.7.3",
-    "lxml>=5.3.1",
-    "pythonnet>=3.0.5",
-    "rich>=13.9.4",
-]
-
-[dependency-groups]
-edit = ["more-itertools>=10.8.0"]
-dataframe = ["fastexcel>=0.16.0", "polars>=1.34.0"]
-dev = [
-    "cx-freeze>=8.3.0",
-    "mypy>=1.15.0",
-    "pytest>=8.3.5",
-    "pytest-cov>=6.0.0",
-    "pytest-sugar>=1.0.0",
-    "pytest-xdist>=3.7.0",
-    "ruff>=0.11.2",
-    "types-lxml>=2025.3.4",
+dependencies    = [
+  "cyclopts>=4.2.1",
+  "loguru>=0.7.3",
+  "lxml>=5.3.1",
+  "pythonnet>=3.0.5",
+  "rich>=13.9.4",
 ]
 
 [project.scripts]
 eco2 = "eco2.cli:app.meta"
 
+[dependency-groups]
+dev       = [
+  "cx-freeze>=8.3.0",
+  "mypy>=1.15.0",
+  "pytest>=8.3.5",
+  "pytest-cov>=6.0.0",
+  "pytest-sugar>=1.0.0",
+  "pytest-xdist>=3.7.0",
+  "ruff>=0.11.2",
+  "ty>=0.0.21",
+  "types-lxml>=2025.3.4",
+]
+dataframe = ["fastexcel>=0.16.0", "polars>=1.34.0"]
+edit      = ["more-itertools>=10.8.0"]
+
 [build-system]
-requires = ["hatchling"]
+requires      = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -40,28 +41,28 @@ packages = ["eco2"]
 default-groups = "all"
 
 [tool.ruff]
-preview = true
+preview           = true
 respect-gitignore = false
-output-format = "concise"
+output-format     = "concise"
 
 [tool.ruff.format]
-quote-style = "single"
+quote-style           = "single"
 docstring-code-format = true
 
 [tool.ruff.lint]
-select = ["ALL"]
-ignore = [
-    "COM",  # flake8-commas
-    "CPY",  # flake8-copyright
-    "D100", # pydocstyle: undocumented-public-module
-    "FIX",  # flake8-fixme
-    "Q",    # flake8-quotes
-    "S101", # flake8-bandit: assert
+select             = ["ALL"]
+ignore             = [
+  "COM",                      # flake8-commas
+  "CPY",                      # flake8-copyright
+  "D100",                     # pydocstyle: undocumented-public-module
+  "FIX",                      # flake8-fixme
+  "Q",                        # flake8-quotes
+  "S101",                     # flake8-bandit: assert
 ]
-extend-safe-fixes = [
-    "EM", # flake8-errmsg
-    "PT", # flake8-pytest-style
-    "TC", # flake8-type-checking
+extend-safe-fixes  = [
+  "EM",                       # flake8-errmsg
+  "PT",                       # flake8-pytest-style
+  "TC",                       # flake8-type-checking
 ]
 future-annotations = true
 
@@ -77,9 +78,12 @@ ignore-one-line-docstrings = true
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
+[tool.ty.terminal]
+output-format = "concise"
+
 [tool.mypy]
-disable_error_code = ["import-untyped", "import", "var-annotated"]
-check_untyped_defs = true
+disable_error_code  = ["import-untyped", "import", "var-annotated"]
+check_untyped_defs  = true
 warn_unused_ignores = true
 warn_unused_configs = true
 
@@ -88,7 +92,12 @@ addopts = ["-v", "--doctest-modules", "--cov=./", "--cov-report", "html"]
 
 [tool.coverage.report]
 exclude_also = [
-    "if __name__ == .__main__.:",
-    "if (typing\\.)?TYPE_CHECKING:",
-    "except .*(\\n)?.*MiniLzo.*Error",
+  "if __name__ == .__main__.:",
+  "if (typing\\.)?TYPE_CHECKING:",
+  "except .*(\\n)?.*MiniLzo.*Error",
 ]
+
+[tool.tombi.format.rules]
+key-value-equals-sign-alignment = true
+line-width                      = 120
+trailing-comment-alignment      = true
