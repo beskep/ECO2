@@ -11,7 +11,8 @@ def test_convert(tmp_path: Path):
     for file in ECO2:
         shutil.copy2(ROOT / file, tmp_path)
 
-    app(['convert', str(tmp_path)])
+    with pytest.raises(SystemExit):
+        app(['convert', str(tmp_path)])
 
     for src in ECO2:
         ext = '.eco' if Path(src).suffix.lower().startswith('.tpl') else '.tpl'
@@ -37,7 +38,8 @@ def test_cli_input_file(file: str, tmp_path: Path):
 
     # decrypt
     args = ['--debug', 'decrypt', ROOT / file, '--output', xml.parent, '--header']
-    app.meta(list(map(str, args)))
+    with pytest.raises(SystemExit):
+        app.meta(list(map(str, args)))
 
     assert header.exists(), header
     assert xml.exists(), xml
@@ -56,7 +58,8 @@ def test_cli_input_file(file: str, tmp_path: Path):
         tmp_path,
         '--dsr',
     ]
-    app.meta(list(map(str, args)))
+    with pytest.raises(SystemExit):
+        app.meta(list(map(str, args)))
 
     assert encrypted.exists(), encrypted
 
@@ -67,7 +70,8 @@ def test_cli_input_file(file: str, tmp_path: Path):
 
 def test_cli_input_dir(tmp_path: Path):
     args = ['--debug', 'decrypt', ROOT, '--output', tmp_path, '--header']
-    app.meta(list(map(str, args)))
+    with pytest.raises(SystemExit):
+        app.meta(list(map(str, args)))
 
     for file in ECO2:
         header = (tmp_path / file).with_suffix('.json')
@@ -76,7 +80,8 @@ def test_cli_input_dir(tmp_path: Path):
         assert xml.exists(), xml
 
     args = ['--debug', 'encrypt', tmp_path, '--output', tmp_path, '--no-dsr']
-    app.meta(list(map(str, args)))
+    with pytest.raises(SystemExit):
+        app.meta(list(map(str, args)))
     for file in ECO2:
         f = (tmp_path / file).with_suffix('.eco')
         assert f.exists(), f
