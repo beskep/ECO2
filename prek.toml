@@ -1,4 +1,4 @@
-# :schema: https://www.schemastore.org/prek.json
+#:schema https://www.schemastore.org/prek.json
 
 [[repos]]
 repo  = "builtin"
@@ -9,19 +9,25 @@ hooks = [
 ]
 
 [[repos]]
-repo  = "https://github.com/astral-sh/ruff-pre-commit"
-rev   = "v0.15.0"
-hooks = [
-  { id = "ruff-check", args = ["--fix"], types_or = ["python", "pyi"] },
-  { id = "ruff-format", types_or = ["python", "pyi"] },
-]
-
-[[repos]]
 repo = "local"
 
 [[repos.hooks]]
-id             = "mise format"
-name           = "mise format"
-entry          = "mise run format"
+id             = "ruff-check"
+name           = "ruff check"
+entry          = "ruff check --fix"
+language       = "system"
+pass_filenames = false
+
+[[repos.hooks]]
+id             = "ruff-format"
+name           = "ruff format"
+entry          = "ruff format"
+language       = "system"
+pass_filenames = false
+
+[[repos.hooks]]
+id             = "tombi-format"
+name           = "tombi format"
+entry          = "tombi format"
 language       = "system"
 pass_filenames = false
