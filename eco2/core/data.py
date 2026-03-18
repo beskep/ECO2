@@ -15,11 +15,6 @@ from eco2 import minilzo
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-try:  # noqa: SIM105
-    minilzo.load_dll()
-except minilzo.MiniLzoDllNotFoundError:
-    pass
-
 
 def _lf2crlf(text: str) -> str:
     return text.replace('\r\n', '\n').replace('\n', '\r\n')
@@ -276,10 +271,10 @@ class Eco2:
         data += struct.pack('<q', len(dsr))
         data += dsr
 
-        if xor:
-            data = self.xor(data)
         if compress:
             data = minilzo.compress(data)
+        if xor:
+            data = self.xor(data)
 
         return data
 
@@ -288,7 +283,6 @@ class Eco2:
         ECO2 저장 파일 (`.eco`, `.ecox`, `.tpl`, `.tplx`, `.ecl2`) 변환 및 저장.
 
         저장 경로 확장자에 따라 xor 암호화, MiniLZO 압축 여부 자동 결정.
-        **`.ecox`, `.tplx` 저장 시 오류 발생 가능**
 
         Parameters
         ----------

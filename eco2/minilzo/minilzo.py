@@ -1,60 +1,104 @@
-# ruff: noqa: D101 D103 PLC0415
+# ruff: noqa: S404 S603
+import subprocess as sp
 import sys
+import tempfile
 from pathlib import Path
 
-import pythonnet
 
-pythonnet.load('coreclr')
+class MiniLzoNotFoundError(FileNotFoundError):
+    """MiniLZO.exe not found error."""
 
-import clr  # noqa: E402
-
-
-class MiniLzoDllNotFoundError(FileNotFoundError):
-    pass
+    def __init__(self, msg: str = 'Cannot find MiniLZO.exe', *args: object) -> None:
+        super().__init__(msg, *args)
 
 
-class MiniLzoImportError(RuntimeError):
-    def __init__(self, *args: object) -> None:
-        super().__init__('Cannot import MiniLZO.dll', *args)
+def find_minilzo(pattern: str = '**/MiniLZO.exe') -> str:
+    """
+    Find path of MiniLZO.exe.
 
+    Parameters
+    ----------
+    pattern : str, optional
 
-def find_dll() -> Path:
+    Returns
+    -------
+    str
+
+    Raises
+    ------
+    MiniLzoNotFoundError
+    """
     is_frozen = hasattr(sys, 'frozen')
     root = Path(sys.executable).parent if is_frozen else Path()
-    p = '**/bin/Release/**/MiniLZO.dll'
 
     try:
-        return next(root.glob(p)).absolute()
+        return next(root.glob(pattern)).absolute().as_posix()
     except StopIteration:
-        raise MiniLzoDllNotFoundError(p) from None
-
-
-def load_dll(path: str | Path | None = None) -> None:
-    path = path or find_dll()
-    clr.AddReference(str(path))
+        msg = f'Could not find MiniLZO.exe matching `{pattern}`.'
+        raise MiniLzoNotFoundError(msg) from None
 
 
 def compress(data: bytes) -> bytes:
-    try:
-        from MiniLZO import MiniLZO
-    except ImportError:
-        raise MiniLzoImportError from None
+    """
+    Minilzo compress.
 
-    return bytes(MiniLZO.CompressBytes(data))
+    Parameters
+    ----------
+    data : bytes
+
+    Returns
+    -------
+    bytes
+    """
+    minilzo = find_minilzo()
+
+    with (
+        tempfile.NamedTemporaryFile(delete=False) as s,
+        tempfile.NamedTemporaryFile(delete=False) as d,
+    ):
+        src = Path(s.name)
+        dst = Path(d.name)
+        s.write(data)
+
+    try:
+        sp.check_output([minilzo, 'compress', src.as_posix(), dst.as_posix()])
+        return dst.read_bytes()
+    finally:
+        src.unlink()
+        dst.unlink()
 
 
 def decompress(data: bytes) -> bytes:
-    try:
-        from MiniLZO import MiniLZO
-    except ImportError:
-        raise MiniLzoImportError from None
+    """
+    Minilzo decompress.
 
-    return bytes(MiniLZO.DecompressBytes(data))
+    Parameters
+    ----------
+    data : bytes
+
+    Returns
+    -------
+    bytes
+    """
+    minilzo = find_minilzo()
+
+    with (
+        tempfile.NamedTemporaryFile(delete=False) as s,
+        tempfile.NamedTemporaryFile(delete=False) as d,
+    ):
+        src = Path(s.name)
+        dst = Path(d.name)
+        s.write(data)
+
+    try:
+        sp.check_output([minilzo, 'decompress', src.as_posix(), dst.as_posix()])
+        return dst.read_bytes()
+    finally:
+        src.unlink()
+        dst.unlink()
 
 
 if __name__ == '__main__':
-    import subprocess as sp  # noqa: S404
-
     import rich
     from cyclopts import App
 
@@ -62,28 +106,24 @@ if __name__ == '__main__':
     cnsl = rich.get_console()
 
     @app.default
-    def test() -> None:
-        load_dll()
-        b = b'forty two'
+    def test_compress() -> None:
+        """압축/해제 테스트."""
+        b = (
+            b"I've seen things you people wouldn't believe. "
+            b'Attack ships on fire off the shoulder of Orion. '
+            b'I watched C-beams glitter in the dark near the Tannhauser Gate. '
+            b'All those moments will be lost in time, like tears in rain. '
+            b'Time to die.'
+        )
         c = compress(b)
-        cnsl.print(f'original    ={b!r}')
+        cnsl.print(f'raw         ={b!r}')
         cnsl.print(f'compressed  ={c!r}')
         cnsl.print(f'decompressed={decompress(c)!r}')
 
     @app.command
-    def dotnet_new() -> None:
-        """Dotnet new (다시 실행할 필요 없음)."""
-        args = 'dotnet new console --framework net7.0 --name MiniLZO --output . --force'
-        sp.check_output(args)  # noqa: S603
-
-    @app.command
     def dotnet_build() -> None:
-        """Build minilzo."""
+        """Build MiniLZO."""
         args = ['dotnet', 'build', '--configuration', 'Release']
-        p = sp.Popen(args, stdin=sp.PIPE, stderr=sp.STDOUT)  # noqa: S603
-
-        while p.poll() is None:
-            if p.stdout is not None:
-                cnsl.print(p.stdout.readline(), end='')
+        cnsl.print(sp.check_output(args).decode())
 
     app()

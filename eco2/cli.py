@@ -12,7 +12,6 @@ from cyclopts import App, Group, Parameter
 from loguru import logger
 
 from eco2.core import Eco2, Eco2Xml, Header
-from eco2.minilzo import MiniLzoImportError
 from eco2.utils import LogHandler, Progress
 
 if TYPE_CHECKING:
@@ -33,7 +32,7 @@ def _all_unique[T](iterable: Iterable[T]) -> bool:
 
 app = App(
     version='0.8.0',
-    config=cyclopts.config.Toml('config.toml'),
+    config=cyclopts.config.Toml('config.toml'),  # ty:ignore[invalid-argument-type]
     help_format='markdown',
     help_on_error=True,
     result_action=['call_if_callable', 'print_non_int_sys_exit'],
@@ -57,11 +56,18 @@ class Convert:
     """`.eco`, `.ecox`를 `.tpl`로, 또는 `.tpl`, `.tplx`를 `.eco`로 변환."""
 
     input_: Annotated[tuple[Path, ...], Parameter(negative=[])]
+    """입력 파일 또는 입력 파일이 있는 폴더."""
 
     _: dc.KW_ONLY
 
+    x: bool = True
+    """비압축 파일(.eco, .tpl) 대신 압축 파일(.ecox, .tplx)로 변환 여부."""
+
     output: Path | None = None
+    """결과 파일 경로. 미지정 시 입력 파일에서 확장자만 바꾼 파일."""
+
     target: Sequence[str] = ('.eco', '.ecox', '.tpl', '.tplx')
+    """`input`이 폴더일 경우 변환 대상 파일의 확장자."""
 
     def __post_init__(self) -> None:
         self.input_ = tuple(self._resolve_input(self.input_))
@@ -83,6 +89,13 @@ class Convert:
 
         return paths
 
+    def _destination(self, src: Path) -> Path:
+        ext = 'eco' if src.suffix.lower().startswith('.tpl') else 'tpl'
+        if self.x:
+            ext = f'{ext}x'
+
+        return self.output or src.parent / f'{src.stem}.{ext}'
+
     def __call__(self) -> None:
         it = (
             Progress.iter(self.input_, description='Encrypting...')
@@ -91,8 +104,7 @@ class Convert:
         )
 
         for src in it:
-            ext = 'eco' if src.suffix.lower().startswith('.tpl') else 'tpl'
-            dst = self.output or src.parent / f'{src.stem}.{ext}'
+            dst = self._destination(src)
 
             if dst.exists():
                 logger.error('파일이 이미 존재합니다: "{}"', dst)
@@ -187,6 +199,7 @@ class Decrypt:
         eco.write(xml)
 
     def _decrypt(self, src: Path) -> None:
+        src.stat()
         ext = src.suffix.lower()
 
         if ext in self.ext.eco2:
@@ -207,8 +220,6 @@ class Decrypt:
         for src in it:
             try:
                 self._decrypt(src)
-            except MiniLzoImportError as e:
-                logger.error(e)
             except (ValueError, RuntimeError, OSError) as e:
                 logger.exception(e)
 
@@ -230,7 +241,7 @@ class Encrypt:
     output: Path | None = None
     """저장 폴더. 대상 경로 아래 xml 파일과 이름이 같은 `.eco` 파일 저장."""
 
-    extension: Literal['eco', 'tpl'] = 'eco'
+    extension: Literal['eco', 'ecox', 'tpl', 'tplx'] = 'ecox'
     """저장할 파일 형식."""
 
     encoding: str = 'UTF-8'
@@ -274,6 +285,8 @@ class Encrypt:
         return None if self.header is None else self._read_header(self.header)
 
     def _encrypt(self, xml: Path) -> None:
+        xml.stat()
+
         header = self.common_header or self._read_header(xml.with_suffix('.json'))
         output = (
             self.output / f'{xml.stem}.{self.extension}'

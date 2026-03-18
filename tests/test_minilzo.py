@@ -2,16 +2,15 @@ import pytest
 
 from eco2 import minilzo
 
-minilzo.load_dll()
 
-
-def test_load():
-    from MiniLZO import MiniLZO  # type: ignore # noqa: PGH003 PLC0415
-
-    assert MiniLZO.TheAnswer() == 42  # noqa: PLR2004
-
-
-@pytest.mark.parametrize('data', [b'', b'4242', b'forty two'])
+@pytest.mark.parametrize(
+    'data',
+    [
+        b'',
+        b'3.14159265358979323846',
+        b"I thought what I'd do was, I'd pretend I was one of those deaf-mutes.",
+    ],
+)
 def test_compress(data):
     compressed = minilzo.compress(data)
     decompressed = minilzo.decompress(compressed)

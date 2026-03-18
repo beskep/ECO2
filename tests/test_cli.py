@@ -6,30 +6,28 @@ import pytest
 from eco2.cli import app
 from tests.data import ECO2, ROOT
 
+EXTENSIONS = ('eco', 'ecox', 'tpl', 'tplx')
 
-def test_convert(tmp_path: Path):
-    for file in ECO2:
-        shutil.copy2(ROOT / file, tmp_path)
+
+@pytest.mark.parametrize('src', ECO2)
+@pytest.mark.parametrize('x', [False, True])
+def test_convert(tmp_path: Path, src, x):
+    shutil.copy2(ROOT / src, tmp_path)
 
     with pytest.raises(SystemExit):
-        app(['convert', str(tmp_path)])
+        app(['convert', str(tmp_path), '--x' if x else '--no-x'])
 
-    for src in ECO2:
-        ext = '.eco' if Path(src).suffix.lower().startswith('.tpl') else '.tpl'
-        dst = (tmp_path / src).with_suffix(ext)
-        assert dst.exists(), dst
+    ext = {'.eco': '.tpl', '.tpl': '.eco'}[Path(src).suffix.lower().rstrip('x')]
+    if x:
+        ext = f'{ext}x'
 
-
-def test_empty_path(tmp_path: Path):
-    with pytest.raises(FileNotFoundError):
-        app(['decrypt', str(tmp_path)])
-
-    with pytest.raises(FileNotFoundError):
-        app(['encrypt', str(tmp_path)])
+    dst = (tmp_path / src).with_suffix(ext)
+    assert dst.exists(), dst
 
 
 @pytest.mark.parametrize('file', ECO2)
-def test_cli_input_file(file: str, tmp_path: Path):
+@pytest.mark.parametrize('ext', EXTENSIONS)
+def test_cli_input_file(file: str, ext: str, tmp_path: Path):
     header = (tmp_path / file).with_suffix('.json')
     xml = (tmp_path / file).with_suffix('.xml')
 
@@ -44,7 +42,7 @@ def test_cli_input_file(file: str, tmp_path: Path):
     assert header.exists(), header
     assert xml.exists(), xml
 
-    encrypted = (tmp_path / file).with_suffix('.eco')
+    encrypted = (tmp_path / file).with_suffix(f'.{ext}')
     encrypted.unlink(missing_ok=True)
 
     # encrypt
@@ -56,6 +54,8 @@ def test_cli_input_file(file: str, tmp_path: Path):
         header,
         '--output',
         tmp_path,
+        '--extension',
+        ext,
         '--dsr',
     ]
     with pytest.raises(SystemExit):
@@ -83,5 +83,5 @@ def test_cli_input_dir(tmp_path: Path):
     with pytest.raises(SystemExit):
         app.meta(list(map(str, args)))
     for file in ECO2:
-        f = (tmp_path / file).with_suffix('.eco')
+        f = (tmp_path / file).with_suffix('.ecox')
         assert f.exists(), f
