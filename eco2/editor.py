@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import dataclasses as dc
 import functools
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
+from typing import TYPE_CHECKING, ClassVar, Literal, Self
 
 import more_itertools as mi
 from loguru import logger
@@ -68,7 +68,7 @@ class ElementNotFoundError(EditorError):  # noqa: D101
     pass
 
 
-def set_child_text(element: _Element, child: str, value: Any) -> None:  # noqa: ANN401
+def set_child_text(element: _Element, child: str, value: object) -> None:
     """
     Element의 child 값 설정.
 
@@ -124,10 +124,6 @@ class Area:
             **{k: cls._value(desc, p) for k, p in cls.KEY.items()},
             raw={k: desc.findtext(p) for k, p in cls.KEY.items()},
         )
-
-
-# NOTE 개별 element 수정 기능은 Eco2Xml에,
-# 전체 케이스 수정 기능은 Eco2Editor에 구현
 
 
 @dc.dataclass
@@ -282,30 +278,6 @@ class Eco2Xml(core.Eco2Xml):
                 if e.findtext('열관류율2') == pcode:
                     set_child_text(e, '투과율', total)
 
-
-class Eco2Editor:
-    """ECO2 파일 수정."""
-
-    def __init__(self, src: str | Path | core.Eco2) -> None:
-        self.eco2 = src if isinstance(src, core.Eco2) else core.Eco2.read(src)
-        self.xml = Eco2Xml.create(self.eco2)
-
-    def write(self, path: str | Path, *, dsr: bool | None = False) -> None:
-        """
-        `.eco`, `.tpl`, `.ecl2` 파일 저장 (`.ecox`, `.tplx` 미지원).
-
-        Parameters
-        ----------
-        path : str | Path
-        dsr : bool | None, optional
-        """
-        eco2 = core.Eco2(
-            header=self.eco2.header,
-            ds=self.xml.tostring('DS'),
-            dsr=self.xml.tostring('DSR'),
-        )
-        eco2.write(path, dsr=dsr)
-
     def set_walls(
         self,
         uvalue: float,
@@ -331,7 +303,7 @@ class Eco2Editor:
         ------
         ElementNotFoundError
         """
-        if not (walls := list(self.xml.surfaces_by_type(surface_type))):
+        if not (walls := list(self.surfaces_by_type(surface_type))):
             if if_empty == 'raise':
                 raise ElementNotFoundError(surface_type)
 
@@ -341,7 +313,7 @@ class Eco2Editor:
             if w.findtext('code') == '0':
                 continue
 
-            self.xml.set_wall_uvalue(wall=w, uvalue=uvalue)
+            self.set_wall_uvalue(wall=w, uvalue=uvalue)
 
         return self
 
@@ -380,7 +352,7 @@ class Eco2Editor:
             msg = f'{uvalue=}, {shgc=}'
             raise EditorError(msg)
 
-        if not (windows := list(self.xml.surfaces_by_type(surface_type))):
+        if not (windows := list(self.surfaces_by_type(surface_type))):
             if if_empty == 'raise':
                 raise ElementNotFoundError(surface_type)
 
@@ -391,10 +363,47 @@ class Eco2Editor:
                 continue
 
             if uvalue is not None:
-                self.xml.set_window_uvalue(window=w, uvalue=uvalue)
+                self.set_window_uvalue(window=w, uvalue=uvalue)
             if shgc is not None:
-                self.xml.set_window_shgc(
-                    window=w, shgc=shgc, update_zero=update_zero_shgc
-                )
+                self.set_window_shgc(window=w, shgc=shgc, update_zero=update_zero_shgc)
 
         return self
+
+
+@dc.dataclass(frozen=True)
+class Eco2Editor:
+    """ECO2 파일 수정."""
+
+    src: str | Path | core.Eco2
+
+    @functools.cached_property
+    def eco2(self) -> core.Eco2:
+        """
+        ECO2 객체.
+
+        Returns
+        -------
+        core.Eco2
+        """
+        return self.src if isinstance(self.src, core.Eco2) else core.Eco2.read(self.src)
+
+    @functools.cached_property
+    def xml(self) -> Eco2Xml:
+        """XML 모델 설계 정보."""
+        return Eco2Xml.create(self.eco2)
+
+    def write(self, path: str | Path, *, dsr: bool | None = None) -> None:
+        """
+        ECO2 저장 파일(`.eco`, `.ecox`, `.tpl`, `.tplx`, `.ecl2`)로 디스크에 저장.
+
+        Parameters
+        ----------
+        path : str | Path
+        dsr : bool, optional
+        """
+        eco2 = core.Eco2(
+            header=self.eco2.header,
+            ds=self.xml.tostring('DS'),
+            dsr=self.xml.tostring('DSR'),
+        )
+        eco2.write(path, dsr=dsr)
