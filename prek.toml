@@ -12,22 +12,22 @@ hooks = [
 repo = "local"
 
 [[repos.hooks]]
-id             = "ruff-check"
-name           = "ruff check"
-entry          = "ruff check --fix"
-language       = "system"
-pass_filenames = false
+id       = "ruff-check"
+name     = "ruff check"
+entry    = "ruff check --fix"
+language = "system"
+types_or = ["python", "pyi", "jupyter"]
 
 [[repos.hooks]]
-id             = "ruff-format"
-name           = "ruff format"
-entry          = "ruff format"
-language       = "system"
-pass_filenames = false
+id       = "ruff-format"
+name     = "ruff format"
+entry    = "ruff format"
+language = "system"
+types_or = ["python", "pyi", "jupyter"]
 
 [[repos.hooks]]
-id             = "tombi-format"
-name           = "tombi format"
-entry          = "tombi format"
-language       = "system"
-pass_filenames = false
+id       = "tombi-format"
+name     = "tombi format"
+entry    = "tombi format"
+language = "system"
+files    = '\.toml$'
