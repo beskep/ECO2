@@ -171,6 +171,7 @@ class Eco2:
             Header, DS, DSR
         """
         stream = data if isinstance(data, IO) else io.BytesIO(data)
+        assert isinstance(stream, io.IOBase)
 
         # header
         header = Header.read(stream)
