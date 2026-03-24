@@ -4,6 +4,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+MINILZO = 'bin/**/MiniLZO.exe'
+
 
 class MiniLzoNotFoundError(FileNotFoundError):
     """MiniLZO.exe not found error."""
@@ -12,7 +14,7 @@ class MiniLzoNotFoundError(FileNotFoundError):
         super().__init__(msg, *args)
 
 
-def find_minilzo(pattern: str = '**/MiniLZO.exe') -> str:
+def find_minilzo(pattern: str = MINILZO) -> str:
     """
     Find path of MiniLZO.exe.
 
@@ -35,10 +37,10 @@ def find_minilzo(pattern: str = '**/MiniLZO.exe') -> str:
         return next(root.glob(pattern)).absolute().as_posix()
     except StopIteration:
         msg = f'Could not find MiniLZO.exe matching `{pattern}`.'
-        raise MiniLzoNotFoundError(msg) from None
+        raise MiniLzoNotFoundError(msg, root) from None
 
 
-def compress(data: bytes) -> bytes:
+def compress(data: bytes, minilzo: str = MINILZO) -> bytes:
     """
     Minilzo compress.
 
@@ -50,7 +52,7 @@ def compress(data: bytes) -> bytes:
     -------
     bytes
     """
-    minilzo = find_minilzo()
+    m = find_minilzo(minilzo)
 
     with (
         tempfile.NamedTemporaryFile(delete=False) as s,
@@ -61,14 +63,14 @@ def compress(data: bytes) -> bytes:
         s.write(data)
 
     try:
-        sp.check_output([minilzo, 'compress', src.as_posix(), dst.as_posix()])
+        sp.check_output([m, 'compress', src.as_posix(), dst.as_posix()])
         return dst.read_bytes()
     finally:
         src.unlink()
         dst.unlink()
 
 
-def decompress(data: bytes) -> bytes:
+def decompress(data: bytes, minilzo: str = MINILZO) -> bytes:
     """
     Minilzo decompress.
 
@@ -80,7 +82,7 @@ def decompress(data: bytes) -> bytes:
     -------
     bytes
     """
-    minilzo = find_minilzo()
+    m = find_minilzo(minilzo)
 
     with (
         tempfile.NamedTemporaryFile(delete=False) as s,
@@ -91,7 +93,7 @@ def decompress(data: bytes) -> bytes:
         s.write(data)
 
     try:
-        sp.check_output([minilzo, 'decompress', src.as_posix(), dst.as_posix()])
+        sp.check_output([m, 'decompress', src.as_posix(), dst.as_posix()])
         return dst.read_bytes()
     finally:
         src.unlink()
@@ -108,17 +110,20 @@ if __name__ == '__main__':
     @app.default
     def test_compress() -> None:
         """압축/해제 테스트."""
-        b = (
+        r = (
             b"I've seen things you people wouldn't believe. "
             b'Attack ships on fire off the shoulder of Orion. '
             b'I watched C-beams glitter in the dark near the Tannhauser Gate. '
             b'All those moments will be lost in time, like tears in rain. '
             b'Time to die.'
         )
-        c = compress(b)
-        cnsl.print(f'raw         ={b!r}')
-        cnsl.print(f'compressed  ={c!r}')
-        cnsl.print(f'decompressed={decompress(c)!r}')
+        c = compress(r)
+        d = decompress(c)
+
+        cnsl.print(f'raw          = {r!r}')
+        cnsl.print(f'compressed   = {c!r}')
+        cnsl.print(f'decompressed = {d!r}')
+        assert r == d
 
     @app.command
     def dotnet_build() -> None:
