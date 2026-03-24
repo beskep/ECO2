@@ -15,7 +15,10 @@ if TYPE_CHECKING:
 def test_editor(file: str, tmp_path: Path):
     src = ROOT / file
     dst = tmp_path / file
+
     editor = Eco2Editor(src)
+    assert editor.xml.area.floor is not None
+
     (
         editor.xml
         .set_walls(uvalue=42.0)

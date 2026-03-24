@@ -63,10 +63,6 @@ def test_cli_input_file(file: str, ext: str, tmp_path: Path):
 
     assert encrypted.exists(), encrypted
 
-    header.unlink(missing_ok=True)
-    xml.unlink(missing_ok=True)
-    encrypted.unlink(missing_ok=True)
-
 
 def test_cli_input_dir(tmp_path: Path):
     args = ['--debug', 'decrypt', ROOT, '--output', tmp_path, '--header']
