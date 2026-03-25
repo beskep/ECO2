@@ -101,34 +101,22 @@ def decompress(data: bytes, minilzo: str = MINILZO) -> bytes:
 
 
 if __name__ == '__main__':
+    # `dotnet build --configuration Release`로 빌드
     import rich
-    from cyclopts import App
 
-    app = App()
-    cnsl = rich.get_console()
+    console = rich.get_console()
 
-    @app.default
-    def test_compress() -> None:
-        """압축/해제 테스트."""
-        r = (
-            b"I've seen things you people wouldn't believe. "
-            b'Attack ships on fire off the shoulder of Orion. '
-            b'I watched C-beams glitter in the dark near the Tannhauser Gate. '
-            b'All those moments will be lost in time, like tears in rain. '
-            b'Time to die.'
-        )
-        c = compress(r)
-        d = decompress(c)
+    r = (
+        b"I've seen things you people wouldn't believe. "
+        b'Attack ships on fire off the shoulder of Orion. '
+        b'I watched C-beams glitter in the dark near the Tannhauser Gate. '
+        b'All those moments will be lost in time, like tears in rain. '
+        b'Time to die.'
+    )
+    c = compress(r)
+    d = decompress(c)
 
-        cnsl.print(f'raw          = {r!r}')
-        cnsl.print(f'compressed   = {c!r}')
-        cnsl.print(f'decompressed = {d!r}')
-        assert r == d
-
-    @app.command
-    def dotnet_build() -> None:
-        """Build MiniLZO."""
-        args = ['dotnet', 'build', '--configuration', 'Release']
-        cnsl.print(sp.check_output(args).decode())
-
-    app()
+    console.print(f'raw          = {r!r}')
+    console.print(f'compressed   = {c!r}')
+    console.print(f'decompressed = {d!r}')
+    assert r == d
