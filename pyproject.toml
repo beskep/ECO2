@@ -28,11 +28,24 @@ edit      = ["more-itertools>=10.8.0"]
 requires      = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.coverage.report]
+exclude_also = [
+  "if __name__ == .__main__.:",
+  "if (typing\\.)?TYPE_CHECKING:",
+  "except .*(\\n)?.*MiniLzo.*Error",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["eco2"]
 
-[tool.uv]
-default-groups = "all"
+[tool.mypy]
+disable_error_code  = ["import-untyped", "import", "var-annotated"]
+check_untyped_defs  = true
+warn_unused_ignores = true
+warn_unused_configs = true
+
+[tool.pytest]
+addopts = ["--cov-report=html", "--cov=./", "--doctest-modules", "-v"]
 
 [tool.ruff]
 preview           = true
@@ -72,26 +85,13 @@ ignore-one-line-docstrings = true
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
-[tool.ty.terminal]
-output-format = "concise"
-
-[tool.mypy]
-disable_error_code  = ["import-untyped", "import", "var-annotated"]
-check_untyped_defs  = true
-warn_unused_ignores = true
-warn_unused_configs = true
-
-[tool.pytest.ini_options]
-addopts = ["-v", "--doctest-modules", "--cov=./", "--cov-report", "html"]
-
-[tool.coverage.report]
-exclude_also = [
-  "if __name__ == .__main__.:",
-  "if (typing\\.)?TYPE_CHECKING:",
-  "except .*(\\n)?.*MiniLzo.*Error",
-]
-
 [tool.tombi.format.rules]
 key-value-equals-sign-alignment = true
 line-width                      = 120
 trailing-comment-alignment      = true
+
+[tool.ty.terminal]
+output-format = "concise"
+
+[tool.uv]
+default-groups = "all"
