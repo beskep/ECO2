@@ -145,7 +145,7 @@ class Eco2Xml(core.Eco2Xml):
         value: str | None,
         *,
         edit_none: bool = False,
-    ) -> None:
+    ) -> Self:
         """
         XML 내 모든 path의 값 수정.
 
@@ -156,17 +156,26 @@ class Eco2Xml(core.Eco2Xml):
         edit_none : bool, optional
             기존 값이 지정되지 않았을 때 수정 여부.
 
+        Returns
+        -------
+        Self
+
         Examples
         --------
-        침기율 1.0 설정
-        >>> eco = Eco2Xml.create(src)  # doctest: +SKIP
-        >>> eco = eco.set_element('tbl_zone/침기율', 1.0)  # doctest: +SKIP
+        >>> eco = (  # doctest: +SKIP
+        ...     Eco2Xml
+        ...     .create(src)
+        ...     .set_elements('tbl_zone/침기율', '4.0')
+        ...     .set_elements('tbl_zone/조명에너지부하율입력치', '2.0')
+        ... )
         """
         for e in self.iterfind(path):
             if not edit_none and e.text is None:
                 continue
 
             e.text = value
+
+        return self
 
     def surfaces_by_type(self, t: int | SurfaceType, /) -> Generator[_Element]:
         """
