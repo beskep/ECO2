@@ -1,84 +1,103 @@
-# ruff: noqa: D101 D102
+# ruff: noqa: D103
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+import logging
+import logging.handlers
+from typing import TYPE_CHECKING
 
 import rich
-from loguru import logger
+import structlog
 from rich import progress
 from rich.highlighter import RegexHighlighter
 from rich.logging import RichHandler
 from rich.text import Text
-from rich.theme import Theme
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
-    from logging import LogRecord
 
     from rich.highlighter import Highlighter
     from rich.style import Style
     from rich.table import Column
-
+    from structlog.typing import EventDict, ProcessorReturnValue, WrappedLogger
 
 console = rich.get_console()
-console.push_theme(Theme({'logging.level.success': 'bold blue'}))
 
 
-class LogHandler(RichHandler):
-    _NEW_LEVELS: ClassVar[dict[int, str]] = {5: 'TRACE', 25: 'SUCCESS'}
+def _drop_callsite_keys(
+    _logger: WrappedLogger,
+    _method: str,
+    event: EventDict,
+) -> ProcessorReturnValue:
+    event.pop('timestamp', None)
+    event.pop('level', None)
+    event.pop('filename', None)
+    event.pop('lineno', None)
+    event.pop('func_name', None)
+    event.pop('_record', None)
+    event.pop('_from_structlog', None)
+    return event
 
-    def emit(self, record: LogRecord) -> None:
-        if name := self._NEW_LEVELS.get(record.levelno):
-            record.levelname = name
 
-        return super().emit(record)
+def setup_logger(level: int = 20, file: str = 'eco2.log') -> None:
+    shared: list = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+    ]
 
-    @classmethod
-    def set(
-        cls,
-        level: int | str = 20,
-        *,
-        rich_tracebacks: bool = False,
-        remove: bool = True,
-        **kwargs: Any,
-    ) -> None:
-        """
-        `loguru.logger` 세팅.
-
-        Parameters
-        ----------
-        level : int | str, optional
-        rich_tracebacks : bool, optional
-        remove : bool, optional
-
-        Examples
-        --------
-        >>> LogHandler.set(20)
-        >>> from loguru import logger
-        >>> logger.debug('debug')
-        >>> logger.info('info')  # doctest: +ELLIPSIS
-        [...] INFO ...
-        >>> logger.success('success')  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-              SUCCESS ...
-        """
-        handler = cls(
-            console=console,
-            markup=True,
-            log_time_format='[%X]',
-            rich_tracebacks=rich_tracebacks,
+    rich_handler = RichHandler(console=console)
+    rich_handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            processors=[
+                _drop_callsite_keys,
+                structlog.dev.ConsoleRenderer(colors=False, sort_keys=False),
+            ],
+            foreign_pre_chain=shared,
         )
+    )
 
-        if remove:
-            logger.remove()
+    file_handler = logging.handlers.TimedRotatingFileHandler(
+        file, when='d', interval=30
+    )
+    file_handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            processor=structlog.processors.JSONRenderer(ensure_ascii=False),
+            foreign_pre_chain=shared,
+        )
+    )
 
-        logger.add(handler, level=level, format='{message}', **kwargs)
+    logging.basicConfig(
+        level=level,
+        handlers=[rich_handler, file_handler],
+    )
+
+    structlog.configure(
+        processors=[
+            *shared,
+            structlog.stdlib.filter_by_level,
+            structlog.stdlib.add_log_level,
+            structlog.dev.set_exc_info,
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.TimeStamper(fmt='%Y-%m-%d %H:%M:%S'),
+            structlog.processors.CallsiteParameterAdder(  # 여기에 추가
+                [
+                    structlog.processors.CallsiteParameter.FILENAME,
+                    structlog.processors.CallsiteParameter.LINENO,
+                    structlog.processors.CallsiteParameter.FUNC_NAME,
+                ]
+            ),
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
 
 
-class ProgressHighlighter(RegexHighlighter):
+class _ProgressHighlighter(RegexHighlighter):
     highlights = [r'(?P<dim>\d+/\d+=0*)(\d*%)']  # noqa: RUF012
 
 
-class ProgressColumn(progress.TaskProgressColumn):
+class _ProgressColumn(progress.TaskProgressColumn):
     def __init__(
         self,
         *,
@@ -93,7 +112,7 @@ class ProgressColumn(progress.TaskProgressColumn):
             style=style,
             justify='left',
             markup=True,
-            highlighter=highlighter or ProgressHighlighter(),
+            highlighter=highlighter or _ProgressHighlighter(),
             table_column=table_column,
             show_speed=show_speed,
         )
@@ -118,70 +137,33 @@ class ProgressColumn(progress.TaskProgressColumn):
         return text
 
 
-class Progress(progress.Progress):
-    @classmethod
-    def get_default_columns(cls) -> tuple[progress.ProgressColumn, ...]:
-        return (
-            progress.TextColumn('[progress.description]{task.description}'),
-            progress.BarColumn(bar_width=60),
-            ProgressColumn(show_speed=True),
-            progress.TimeRemainingColumn(compact=True, elapsed_when_finished=True),
+def track[T](
+    sequence: Sequence[T] | Iterable[T],
+    *,
+    description: str = 'Working...',
+    total: float | None = None,
+    completed: int = 0,
+    transient: bool = False,
+) -> Iterable[T]:
+    with progress.Progress(
+        progress.TextColumn('[progress.description]{task.description}'),
+        progress.BarColumn(bar_width=60),
+        _ProgressColumn(show_speed=True),
+        progress.TimeRemainingColumn(compact=True, elapsed_when_finished=True),
+        transient=transient,
+    ) as p:
+        yield from p.track(
+            sequence,
+            total=total,
+            completed=completed,
+            description=description,
         )
-
-    @classmethod
-    def iter[T](
-        cls,
-        sequence: Sequence[T] | Iterable[T],
-        *,
-        description: str = 'Working...',
-        total: float | None = None,
-        completed: int = 0,
-        transient: bool = False,
-    ) -> Iterable[T]:
-        """
-        Trace progress.
-
-        Yields
-        ------
-        T
-
-        Examples
-        --------
-        >>> for _ in Progress.iter(range(10)):  # doctest: +ELLIPSIS
-        ...     pass
-        Working... ...
-        >>> def it(x):
-        ...     yield from x
-        >>> for _ in Progress.iter(it(range(10)), description='Iterating...'):
-        ...     pass
-        Iterating... ...
-        """
-        with cls(transient=transient) as p:
-            yield from p.track(
-                sequence,
-                total=total,
-                completed=completed,
-                description=description,
-            )
 
 
 if __name__ == '__main__':
-    import time
+    setup_logger(10)
 
-    for _ in Progress.iter(list(range(100))):
-        time.sleep(0.01)
+    logger = structlog.stdlib.get_logger(__name__)
 
-    LogHandler.set(1, rich_tracebacks=False)
-
-    logger.trace('Trace')
-    logger.debug('Debug')
-    logger.info('Info')
-    logger.success('Success')
-    logger.warning('Warning')
-    logger.error('Error')
-    logger.critical('Critical')
-
-    try:
-        x = 1 / 0
-    except ZeroDivisionError as e:
-        logger.exception(repr(e))
+    for lvl in track(list(range(10, 60, 10))):
+        logger.log(lvl, 'log', lvl=lvl, answer=42)

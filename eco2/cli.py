@@ -8,11 +8,11 @@ from pathlib import Path  # noqa: TC003
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 
 import cyclopts
+import structlog
 from cyclopts import App, Group, Parameter
-from loguru import logger
 
 from eco2.core import Eco2, Eco2Xml, Header
-from eco2.utils import LogHandler, Progress
+from eco2.utils import setup_logger, track
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -32,12 +32,13 @@ def _all_unique[T](iterable: Iterable[T]) -> bool:
 
 app = App(
     version='0.8.0',
-    config=cyclopts.config.Toml('config.toml'),  # ty:ignore[invalid-argument-type]
+    config=cyclopts.config.Toml('config.toml'),
     help_format='markdown',
     help_on_error=True,
     result_action=['call_if_callable', 'print_non_int_sys_exit'],
 )
 app.meta.group_parameters = Group('Options', sort_key=0)
+logger = structlog.stdlib.get_logger()
 
 
 @app.meta.default
@@ -46,7 +47,7 @@ def launcher(
     debug: bool = False,
 ) -> None:
     """Meta app launcher."""
-    LogHandler.set(level=10 if debug else 20)
+    setup_logger(10 if debug else 20)
     return app(tokens)
 
 
@@ -97,20 +98,14 @@ class Convert:
         return self.output or src.parent / f'{src.stem}.{ext}'
 
     def __call__(self) -> None:
-        it = (
-            Progress.iter(self.input_, description='Encrypting...')
-            if len(self.input_) > 1
-            else self.input_
-        )
-
-        for src in it:
+        for src in track(self.input_, description='Converting...'):
             dst = self._destination(src)
 
             if dst.exists():
-                logger.error('파일이 이미 존재합니다: "{}"', dst)
+                logger.error('파일이 이미 존재합니다', path=dst.as_posix())
                 continue
 
-            logger.info('dst="{}"', dst)
+            logger.info(src.as_posix(), dst=dst.as_posix())
 
             eco = Eco2.read(src)
             eco.write(dst)
@@ -176,9 +171,12 @@ class Decrypt:
         header = dst / f'{name}.json' if self.header else None
         xml = dst / f'{name}.xml'
 
-        logger.info('src="{}"', src)
-        logger.debug('header="{}"', header)
-        logger.debug('xml="{}"', xml)
+        logger.info(src.as_posix())
+        logger.debug(
+            'decrypt',
+            header=header.as_posix() if header else header,
+            xml=xml.as_posix(),
+        )
 
         eco = Eco2.read(src)
 
@@ -192,8 +190,7 @@ class Decrypt:
         dst = self.output or src.parent
         xml = dst / f'{name}.xml'
 
-        logger.info('src="{}"', src)
-        logger.debug('xml="{}"', xml)
+        logger.info(src.as_posix(), xml=xml.as_posix())
 
         eco = Eco2Xml.read(src)
         eco.write(xml)
@@ -212,7 +209,7 @@ class Decrypt:
 
     def __call__(self) -> None:
         it = (
-            Progress.iter(self.input_, description='Decrypting...')
+            track(self.input_, description='Decrypting...')
             if len(self.input_) > 1
             else self.input_
         )
@@ -220,8 +217,8 @@ class Decrypt:
         for src in it:
             try:
                 self._decrypt(src)
-            except (ValueError, RuntimeError, OSError) as e:
-                logger.exception(e)
+            except (ValueError, RuntimeError, OSError):
+                logger.exception(src.as_posix())
 
 
 @app.command
@@ -294,9 +291,8 @@ class Encrypt:
             else xml.with_suffix(f'.{self.extension}')
         )
 
-        logger.info('xml="{}"', xml)
-        logger.debug('header="{}"', header)
-        logger.debug('output="{}"', output)
+        logger.info(xml.as_posix())
+        logger.debug('encrypt', header=header, output=output.as_posix())
 
         ds, dsr = self._read_xml(xml)
         eco = Eco2(header=header, ds=ds, dsr=dsr)
@@ -304,19 +300,19 @@ class Encrypt:
 
     def __call__(self) -> None:
         it = (
-            Progress.iter(self.xml, description='Encrypting...')
+            track(self.xml, description='Encrypting...')
             if len(self.xml) > 1
             else self.xml
         )
 
         if self.header:
-            logger.info('header="{}"', self.header)
+            logger.info('header 지정됨', header=self.header)
 
         for xml in it:
             try:
                 self._encrypt(xml)
-            except (ValueError, RuntimeError, OSError) as e:
-                logger.exception(e)
+            except (ValueError, RuntimeError, OSError):
+                logger.exception(xml.as_posix())
 
 
 if __name__ == '__main__':

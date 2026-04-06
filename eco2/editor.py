@@ -7,7 +7,7 @@ import functools
 from typing import TYPE_CHECKING, ClassVar, Literal, Self
 
 import more_itertools as mi
-from loguru import logger
+import structlog
 from lxml import etree
 
 from eco2 import core
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from lxml.etree import _Element
 
-Level = Literal['debug', 'info', 'warning', 'error', 'raise']
+Level = int | Literal['raise']
 SurfaceType = Literal[
     '외벽(벽체)',
     '외벽(지붕)',
@@ -58,6 +58,8 @@ CUSTOM_LAYER = """
   <커스텀>Y</커스텀>
 </tbl_ykdetail>
 """
+
+logger = structlog.stdlib.get_logger()
 
 
 class EditorError(ValueError):  # noqa: D101
@@ -242,7 +244,7 @@ class Eco2Xml(core.Eco2Xml):
         # 전체 열관류율 수정
         if balcony := float(window.findtext('발코니창호열관류율') or 0):
             t = 1.0 / (1.0 / uvalue + 1.0 / (2.0 * balcony))
-            logger.debug('창호 전체 열관류율: {} (glazing={})', t, window)
+            logger.debug('창호 열관류율 계산 결과', glazing=window, total=t)
             total = f'{t:.3f}'
         else:
             total = str(uvalue)
@@ -292,7 +294,7 @@ class Eco2Xml(core.Eco2Xml):
         uvalue: float,
         surface_type: SurfaceType = '외벽(벽체)',
         *,
-        if_empty: Level = 'debug',
+        if_empty: Level = 10,
     ) -> Self:
         """
         벽체 설정.
@@ -316,7 +318,7 @@ class Eco2Xml(core.Eco2Xml):
             if if_empty == 'raise':
                 raise ElementNotFoundError(surface_type)
 
-            logger.log(if_empty.upper(), '`{}`이 존재하지 않음.', surface_type)
+            logger.log(if_empty, '`%s`이 존재하지 않음.', surface_type)
 
         for w in walls:
             if w.findtext('code') == '0':
@@ -333,7 +335,7 @@ class Eco2Xml(core.Eco2Xml):
         surface_type: SurfaceType = '외부창',
         *,
         update_zero_shgc: bool = False,
-        if_empty: Level = 'debug',
+        if_empty: Level = 10,
     ) -> Self:
         """
         창 설정.
@@ -365,7 +367,7 @@ class Eco2Xml(core.Eco2Xml):
             if if_empty == 'raise':
                 raise ElementNotFoundError(surface_type)
 
-            logger.log(if_empty.upper(), '`{}`이 존재하지 않음.', surface_type)
+            logger.log(if_empty, '`%s`이 존재하지 않음.', surface_type)
 
         for w in windows:
             if w.findtext('code') == '0' and w.findtext('열관류율') == 0:

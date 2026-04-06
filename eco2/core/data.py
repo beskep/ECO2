@@ -8,12 +8,14 @@ from itertools import cycle
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, ClassVar, Self
 
-from loguru import logger
+import structlog
 
 from eco2 import minilzo
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+logger = structlog.stdlib.get_logger()
 
 
 def _lf2crlf(text: str) -> str:
@@ -181,7 +183,7 @@ class Eco2:
         ds = stream.read(length).decode()
 
         if not ds.startswith('<DS'):
-            logger.warning('Unexpected DS start: {}', ds.split('\n')[0])
+            logger.warning('Unexpected DS start', first_line=ds.split('\n')[0])
 
         # DSR
         if b'</DSR>' not in data:
@@ -191,7 +193,7 @@ class Eco2:
             dsr = stream.read(length).decode()
 
             if not dsr.startswith('<DSR'):
-                logger.warning('Unexpected DSR start: {}', dsr.split('\n')[0])
+                logger.warning('Unexpected DSR start', first_line=dsr.split('\n')[0])
 
         return header, ds, dsr
 
