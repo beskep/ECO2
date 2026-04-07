@@ -5,7 +5,6 @@ import logging
 import logging.handlers
 from typing import TYPE_CHECKING
 
-import rich
 import structlog
 from rich import progress
 from rich.highlighter import RegexHighlighter
@@ -18,24 +17,25 @@ if TYPE_CHECKING:
     from rich.highlighter import Highlighter
     from rich.style import Style
     from rich.table import Column
-    from structlog.typing import EventDict, ProcessorReturnValue, WrappedLogger
-
-console = rich.get_console()
+    from structlog.typing import EventDict, WrappedLogger
 
 
-def _drop_callsite_keys(
-    _logger: WrappedLogger,
-    _method: str,
-    event: EventDict,
-) -> ProcessorReturnValue:
-    event.pop('timestamp', None)
-    event.pop('level', None)
-    event.pop('filename', None)
-    event.pop('lineno', None)
-    event.pop('func_name', None)
-    event.pop('_record', None)
-    event.pop('_from_structlog', None)
-    return event
+class _ConsoleRenderer(structlog.dev.ConsoleRenderer):
+    DROP = (
+        'timestamp',
+        'level',
+        'filename',
+        'lineno',
+        'func_name',
+        '_record',
+        '_from_structlog',
+    )
+
+    def __call__(self, logger: WrappedLogger, name: str, event_dict: EventDict) -> str:
+        for key in self.DROP:
+            event_dict.pop(key, None)
+
+        return super().__call__(logger, name, event_dict)
 
 
 def setup_logger(level: int = 20, file: str = 'eco2.log') -> None:
@@ -44,13 +44,10 @@ def setup_logger(level: int = 20, file: str = 'eco2.log') -> None:
         structlog.stdlib.PositionalArgumentsFormatter(),
     ]
 
-    rich_handler = RichHandler(console=console)
+    rich_handler = RichHandler(log_time_format='%X')
     rich_handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(
-            processors=[
-                _drop_callsite_keys,
-                structlog.dev.ConsoleRenderer(colors=False, sort_keys=False),
-            ],
+            processor=_ConsoleRenderer(colors=False, sort_keys=False),
             foreign_pre_chain=shared,
         )
     )
@@ -78,13 +75,11 @@ def setup_logger(level: int = 20, file: str = 'eco2.log') -> None:
             structlog.dev.set_exc_info,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.TimeStamper(fmt='%Y-%m-%d %H:%M:%S'),
-            structlog.processors.CallsiteParameterAdder(  # 여기에 추가
-                [
-                    structlog.processors.CallsiteParameter.FILENAME,
-                    structlog.processors.CallsiteParameter.LINENO,
-                    structlog.processors.CallsiteParameter.FUNC_NAME,
-                ]
-            ),
+            structlog.processors.CallsiteParameterAdder([
+                structlog.processors.CallsiteParameter.FILENAME,
+                structlog.processors.CallsiteParameter.LINENO,
+                structlog.processors.CallsiteParameter.FUNC_NAME,
+            ]),
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),
