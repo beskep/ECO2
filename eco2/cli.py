@@ -12,6 +12,7 @@ import structlog
 from cyclopts import App, Group, Parameter
 
 from eco2.core import Eco2, Eco2Xml, Header
+from eco2.editor import Eco2Editor
 from eco2.utils import setup_logger, track
 
 if TYPE_CHECKING:
@@ -114,10 +115,10 @@ class Convert:
 @dc.dataclass
 class _Ext:
     eco2: Sequence[str] = ('.eco', '.ecox', '.tpl', '.tplx')
-    """대상 ECO2 파일 확장자 (대소문자 미구분.)"""
+    """대상 ECO2 파일 확장자 (대소문자 미구분)."""
 
     eco2od: Sequence[str] = ('.ecl2',)
-    """대상 ECO2-OD 파일 확장자 (대소문자 미구분.)"""
+    """대상 ECO2-OD 파일 확장자 (대소문자 미구분)."""
 
 
 @app.command
@@ -127,7 +128,7 @@ class Decrypt:
 
     input_: Annotated[tuple[Path, ...], Parameter(negative=[])]
     """해석할 ECO2 저장 파일 목록.
-    폴더 하나를 지정하면 대상 내 모든 ECO2 파일을 해석함."""
+    폴더 하나를 지정하면 대상 내 모든 ECO2 파일을 해석."""
 
     _: dc.KW_ONLY
 
@@ -313,6 +314,78 @@ class Encrypt:
                 self._encrypt(xml)
             except (ValueError, RuntimeError, OSError):
                 logger.exception(xml.as_posix())
+
+
+@app.command
+@dc.dataclass
+class Prune:
+    """Weather 등 ECO2 공용 정보를 제외한 설계 정보 xml 추출."""
+
+    input_: Annotated[tuple[Path, ...], Parameter(negative=[])]
+    """해석할 ECO2 저장 파일 목록.
+    폴더 하나를 지정하면 대상 내 모든 ECO2 파일을 해석."""
+
+    _: dc.KW_ONLY
+
+    output: Path | None = None
+    """저장 폴더."""
+
+    ext: Sequence[str] = ('.eco', '.ecox', '.tpl', '.tplx')
+    """대상 ECO2 파일 확장자 (대소문자 미구분)."""
+
+    TAGS: ClassVar[tuple[str, ...]] = (
+        'tbl_common',
+        'tbl_profile',
+        'tbl_weather',
+        'weather_cha',
+        'weather_group',
+        'weather_ilsa',
+        'weather_river',
+        'weather_supdo',
+        'weather_temp',
+        'weather_water',
+        'weather_wind',
+    )
+
+    def __post_init__(self) -> None:
+        self.input_ = tuple(self._resolve_input(self.input_))
+
+    def _resolve_input(self, paths: Sequence[Path]) -> Sequence[Path]:
+        if len(paths) != 1 or not paths[0].is_dir():
+            return paths
+
+        directory = paths[0]
+        paths = tuple(
+            x
+            for x in directory.glob('*')
+            if x.is_file() and x.suffix.lower() in self.ext
+        )
+
+        if not paths:
+            msg = f'다음 경로에서 파일을 찾지 못함: "{directory.absolute()}"'
+            raise FileNotFoundError(msg)
+
+        return paths
+
+    def prune(self, src: Path) -> str:
+        xml = Eco2Editor(src).xml
+
+        for e in tuple(xml.ds.iter()):
+            if e.tag in self.TAGS:
+                xml.ds.remove(e)
+
+        return xml.tostring('DS')
+
+    def __call__(self) -> None:
+        for src in track(self.input_, description='Pruning...'):
+            dst = (self.output or src.parent) / f'{src.stem}.xml'
+
+            if dst.exists():
+                logger.error('파일이 이미 존재합니다', path=dst.as_posix())
+                continue
+
+            xml = self.prune(src)
+            dst.write_text(xml)
 
 
 if __name__ == '__main__':
