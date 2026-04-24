@@ -1,19 +1,17 @@
 """ECO2 계산 결과 해석."""
 
-from __future__ import annotations
-
 import contextlib
 import dataclasses as dc
 import functools
 import io
 from itertools import chain
-from typing import IO, TYPE_CHECKING
+from pathlib import Path
+from typing import IO
 
 import polars as pl
 import polars.selectors as cs
 
-if TYPE_CHECKING:
-    from pathlib import Path
+BATCH_META = Path(__file__).parent / 'data/BatchReportMeta.csv'
 
 
 def _key_value(data: str) -> tuple[None, float] | tuple[str, None]:
@@ -43,7 +41,7 @@ class BaseReport:
 
     @functools.cached_property
     def raw(self) -> pl.DataFrame:
-        """엑셀 원본."""
+        """원본 데이터."""
         with contextlib.redirect_stderr(io.StringIO()):
             return pl.read_excel(self.source)
 
@@ -70,7 +68,7 @@ class GraphReport(BaseReport):
 
     @functools.cached_property
     def raw(self) -> pl.DataFrame:
-        """엑셀 원본."""
+        """원본 데이터."""
         raw = super().raw
 
         if 'No Data' in raw:
@@ -200,7 +198,7 @@ class UploadReport(BaseReport):
 
     @functools.cached_property
     def raw(self) -> pl.DataFrame:
-        """엑셀 원본."""
+        """원본 데이터."""
         raw = super().raw.with_columns(
             pl
             .col('단위')
@@ -247,7 +245,7 @@ class CalculationsReport(BaseReport):
 
     @functools.cached_property
     def raw(self) -> pl.DataFrame:
-        """엑셀 원본."""
+        """원본 데이터."""
         with contextlib.redirect_stderr(io.StringIO()):
             r = pl.read_excel(self.source, read_options={'n_rows': 1})
             if r.columns[0] != '에너지 요구량 및 소요량':
@@ -276,4 +274,70 @@ class CalculationsReport(BaseReport):
             .select('index', '구분', pl.all().exclude('index', '구분'))
             .filter(pl.col('합계') != '합계')
             .with_columns(cs.ends_with('합계', '월').cast(pl.Float64))
+        )
+
+
+@dc.dataclass(frozen=True)
+class BatchReport(BaseReport):
+    """batchreport.tab reader."""
+
+    _metadata: str | Path | pl.DataFrame = BATCH_META
+
+    _: dc.KW_ONLY
+
+    kwargs: dict = dc.field(default_factory=dict)
+
+    @functools.cached_property
+    def metadata(self) -> pl.DataFrame:
+        """`업로드 양식`에서 추출한 변수 정보."""
+        return (
+            self._metadata
+            if isinstance(self._metadata, pl.DataFrame)
+            else pl.read_csv(self._metadata)
+        )
+
+    @functools.cached_property
+    def raw(self) -> pl.DataFrame:
+        """원본 데이터."""
+        kwargs = self.kwargs
+        kwargs.setdefault('infer_schema_length', 10000)
+        data = pl.read_csv(self.source, separator='\t', has_header=False, **kwargs)
+        cols = ['file', *self.metadata['variable'].to_list()]
+
+        if len(cols) < data.width:
+            cols = [*cols, *(f'unknown{x + 1}' for x in range(data.width - len(cols)))]
+
+        data.columns = cols
+        data = data.with_columns(
+            (cs.contains('면적') & cs.string())
+            .str.replace_all(',', '')
+            .cast(pl.Float64)
+        )
+        nulls = (
+            data
+            .count()
+            .unpivot()
+            .filter(pl.col('value') == 0)
+            .select('variable')
+            .to_series()
+            .to_list()
+        )
+        if nulls:
+            data = data.with_columns(pl.col(nulls).cast(pl.Float64))
+
+        return data
+
+    @functools.cached_property
+    def data(self) -> pl.DataFrame:
+        """추출, 가공한 데이터."""
+        cols = [x for x in self.metadata.columns if x not in {'variable', 'unit'}]
+        cols = ['index', 'file', *cols, 'variable', 'value', 'unit']
+
+        return (
+            self.raw
+            .with_row_index()
+            .unpivot(index=['index', 'file'])
+            .drop_nulls('value')
+            .join(self.metadata, on='variable', how='left', validate='m:1')
+            .select(*cols)
         )

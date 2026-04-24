@@ -20,3 +20,9 @@ def test_calculations_report():
     r = report.CalculationsReport(ROOT / 'ReportTotal.xls')
     assert isinstance(r.raw, pl.DataFrame)
     assert isinstance(r.data, pl.DataFrame)
+
+
+def test_batchreport():
+    r = report.BatchReport(ROOT / 'batchreport.tab')
+    assert isinstance(r.raw, pl.DataFrame)
+    assert isinstance(r.data, pl.DataFrame)
