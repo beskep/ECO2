@@ -308,11 +308,6 @@ class BatchReport(BaseReport):
             cols = [*cols, *(f'unknown{x + 1}' for x in range(data.width - len(cols)))]
 
         data.columns = cols
-        data = data.with_columns(
-            (cs.contains('면적') & cs.string())
-            .str.replace_all(',', '')
-            .cast(pl.Float64)
-        )
         nulls = (
             data
             .count()
