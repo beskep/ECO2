@@ -330,6 +330,9 @@ class Prune:
     output: Path | None = None
     """저장 폴더."""
 
+    encoding: str = 'UTF-8'
+    """xml 저장 인코딩."""
+
     ext: Sequence[str] = ('.eco', '.ecox', '.tpl', '.tplx')
     """대상 ECO2 파일 확장자 (대소문자 미구분)."""
 
@@ -385,7 +388,7 @@ class Prune:
                 continue
 
             xml = self.prune(src)
-            dst.write_text(xml)
+            dst.write_text(xml, encoding=self.encoding)
 
 
 if __name__ == '__main__':
