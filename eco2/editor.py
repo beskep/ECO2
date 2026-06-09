@@ -244,7 +244,9 @@ class Eco2Xml(core.Eco2Xml):
         # 전체 열관류율 수정
         if balcony := float(window.findtext('발코니창호열관류율') or 0):
             t = 1.0 / (1.0 / uvalue + 1.0 / (2.0 * balcony))
-            logger.debug('창호 열관류율 계산 결과', glazing=window, total=t)
+            logger.debug(
+                '창호 열관류율 계산 결과', glazing=uvalue, balcony=balcony, total=t
+            )
             total = f'{t:.3f}'
         else:
             total = str(uvalue)
