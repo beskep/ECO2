@@ -12,7 +12,6 @@ import structlog
 from cyclopts import App, Group, Parameter
 
 from eco2.core import Eco2, Eco2Xml, Header
-from eco2.editor import Eco2Editor
 from eco2.utils import setup_logger, track
 
 if TYPE_CHECKING:
@@ -337,6 +336,7 @@ class Prune:
     """대상 ECO2 파일 확장자 (대소문자 미구분)."""
 
     TAGS: ClassVar[tuple[str, ...]] = (
+        'tbl_buha',
         'tbl_common',
         'tbl_profile',
         'tbl_weather',
@@ -371,7 +371,7 @@ class Prune:
         return paths
 
     def prune(self, src: Path) -> str:
-        xml = Eco2Editor(src).xml
+        xml = Eco2Xml.read(src)
 
         for e in tuple(xml.ds.iter()):
             if e.tag in self.TAGS:
