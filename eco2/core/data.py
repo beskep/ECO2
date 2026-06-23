@@ -165,7 +165,6 @@ class Eco2:
         Parameters
         ----------
         data : bytes
-            _description_
 
         Returns
         -------
