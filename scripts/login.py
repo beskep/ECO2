@@ -10,11 +10,11 @@ import hashlib
 import sys
 from pathlib import Path
 
-from Crypto.Cipher import DES3  # noqa: S413 # ty:ignore[unresolved-import]
+from Crypto.Cipher import DES3  # ruff: ignore[suspicious-pycrypto-import]
 
 
 def _dotnet_hash(text: str, length: int) -> bytes:
-    sha1 = hashlib.sha1()  # noqa: S324
+    sha1 = hashlib.sha1()  # ruff: ignore[hashlib-insecure-hash-function]
     sha1.update(text.encode('UTF-16LE'))
     hash_bytes = sha1.digest()
 
@@ -46,7 +46,7 @@ def _main(
 
     text = decrypted.decode('UTF-16LE')
 
-    print(text)  # noqa: T201
+    print(text)  # ruff: ignore[print]
 
 
 if __name__ == '__main__':

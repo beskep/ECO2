@@ -1,5 +1,5 @@
 import pytest
-from lxml.etree import _Element  # noqa: PLC2701
+from lxml.etree import _Element  # ruff: ignore[import-private-name]
 
 from eco2 import Eco2, Eco2Xml
 from tests.data import ECO2, ECO2OD, ROOT

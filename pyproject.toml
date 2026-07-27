@@ -66,17 +66,17 @@ docstring-code-format = true
 [tool.ruff.lint]
 select             = ["ALL"]
 ignore             = [
-  "COM",                      # flake8-commas
-  "CPY",                      # flake8-copyright
-  "D100",                     # pydocstyle: undocumented-public-module
-  "FIX",                      # flake8-fixme
-  "Q",                        # flake8-quotes
-  "S101",                     # flake8-bandit: assert
+  "assert",                      # flake8-bandit: assert
+  "COM",                         # flake8-commas
+  "CPY",                         # flake8-copyright
+  "FIX",                         # flake8-fixme
+  "Q",                           # flake8-quotes
+  "undocumented-public-module",  # pydocstyle: undocumented-public-module
 ]
 extend-safe-fixes  = [
-  "EM",                       # flake8-errmsg
-  "PT",                       # flake8-pytest-style
-  "TC",                       # flake8-type-checking
+  "EM",                          # flake8-errmsg
+  "PT",                          # flake8-pytest-style
+  "TC",                          # flake8-type-checking
 ]
 future-annotations = true
 

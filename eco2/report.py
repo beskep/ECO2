@@ -21,15 +21,15 @@ def _key_value(data: str) -> tuple[None, float] | tuple[str, None]:
         return (data.rstrip(' :'), None)
 
 
-class ReportError(ValueError):  # noqa: D101
+class ReportError(ValueError):  # ruff: ignore[undocumented-public-class]
     pass
 
 
-class ReportFormatError(ReportError):  # noqa: D101
+class ReportFormatError(ReportError):  # ruff: ignore[undocumented-public-class]
     pass
 
 
-class EmptyDataError(ReportError):  # noqa: D101
+class EmptyDataError(ReportError):  # ruff: ignore[undocumented-public-class]
     pass
 
 
@@ -90,7 +90,7 @@ class GraphReport(BaseReport):
         stats = tail.select([
             s.name
             for s in tail
-            if not s.is_null().all() and '％' not in s  # noqa: RUF001
+            if not s.is_null().all() and '％' not in s  # ruff: ignore[ambiguous-unicode-character-string]
         ])
 
         kv = [_key_value(x) for x in chain.from_iterable(stats.iter_rows()) if x]
@@ -114,7 +114,7 @@ class GraphReport(BaseReport):
         r = self.rows.monthly
         df = self.raw.drop(cs.contains('UNNAMED'))[r[0] : r[1]]
 
-        if (width := df.width) != 13:  # noqa: PLR2004
+        if (width := df.width) != 13:  # ruff: ignore[magic-value-comparison]
             msg = f'{width=} != 13'
             raise AssertionError(msg)
 

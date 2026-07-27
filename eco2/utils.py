@@ -1,4 +1,4 @@
-# ruff: noqa: D103
+# ruff: file-ignore[undocumented-public-function]
 from __future__ import annotations
 
 import logging
@@ -89,7 +89,7 @@ def setup_logger(level: int = 20, file: str = 'eco2.log') -> None:
 
 
 class _ProgressHighlighter(RegexHighlighter):
-    highlights = [r'(?P<dim>\d+/\d+=0*)(\d*%)']  # noqa: RUF012
+    highlights = [r'(?P<dim>\d+/\d+=0*)(\d*%)']  # ruff: ignore[mutable-class-default]
 
 
 class _ProgressColumn(progress.TaskProgressColumn):

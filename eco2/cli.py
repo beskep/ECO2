@@ -1,10 +1,12 @@
-# ruff: noqa: D102 D105
+# ruff: file-ignore[undocumented-public-method, undocumented-magic-method]
 from __future__ import annotations
 
 import dataclasses as dc
 import functools
-from collections.abc import Sequence  # noqa: TC003
-from pathlib import Path  # noqa: TC003
+from collections.abc import (
+    Sequence,  # ruff: ignore[typing-only-standard-library-import]
+)
+from pathlib import Path  # ruff: ignore[typing-only-standard-library-import]
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 
 import cyclopts

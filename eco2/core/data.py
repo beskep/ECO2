@@ -129,7 +129,7 @@ class Eco2:
     KEY: ClassVar[tuple[int, ...]] = (172, 41, 85, 66)
     EMPTY_DSR: ClassVar[str] = '<DSR xmlns="http://tempuri.org/DSR.xsd"></DSR>'
 
-    def __post_init__(self) -> None:  # noqa: D105
+    def __post_init__(self) -> None:  # ruff: ignore[undocumented-magic-method]
         self.ds = self.ds.replace('\r\n', '\n')
         if self.dsr is not None:
             self.dsr = self.dsr.replace('\r\n', '\n')

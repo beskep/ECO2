@@ -62,11 +62,11 @@ CUSTOM_LAYER = """
 logger = structlog.stdlib.get_logger()
 
 
-class EditorError(ValueError):  # noqa: D101
+class EditorError(ValueError):  # ruff: ignore[undocumented-public-class]
     pass
 
 
-class ElementNotFoundError(EditorError):  # noqa: D101
+class ElementNotFoundError(EditorError):  # ruff: ignore[undocumented-public-class]
     pass
 
 
@@ -272,7 +272,7 @@ class Eco2Xml(core.Eco2Xml):
         """
         path = '일사에너지투과율'
 
-        if not update_zero and (float(window.findtext(path) or 0) == 0):  # noqa: RUF069
+        if not update_zero and (float(window.findtext(path) or 0) == 0):  # ruff: ignore[float-equality-comparison]
             # '외부창'의 원래 SHGC가 0인 경우 (투과율 없는 문) 값을 수정하지 않음.
             return
 

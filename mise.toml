@@ -3,4 +3,4 @@ prek  = "latest"
 tombi = "latest"
 
 [tasks.format]
-run = ["ruff format", "tombi format"]
+run = ["uvx ruff format", "tombi format"]
