@@ -1,17 +1,20 @@
 """ECO2 계산 결과 해석."""
 
+from __future__ import annotations
+
 import contextlib
 import dataclasses as dc
 import functools
 import io
 from itertools import chain
 from pathlib import Path
-from typing import IO
+from typing import IO, TYPE_CHECKING
 
 import polars as pl
 import polars.selectors as cs
 
-BATCH_META = Path(__file__).parent / 'data/BatchReportMeta.csv'
+if TYPE_CHECKING:
+    from polars._typing import CsvEncoding
 
 
 def _key_value(data: str) -> tuple[None, float] | tuple[str, None]:
@@ -281,33 +284,50 @@ class CalculationsReport(BaseReport):
 class BatchReport(BaseReport):
     """batchreport.tab reader."""
 
-    _metadata: str | Path | pl.DataFrame = BATCH_META
+    _metadata: str | Path | pl.DataFrame | None = None
 
     _: dc.KW_ONLY
 
+    encoding: CsvEncoding | str = 'utf8'
     kwargs: dict = dc.field(default_factory=dict)
 
     @functools.cached_property
     def metadata(self) -> pl.DataFrame:
         """`업로드 양식`에서 추출한 변수 정보."""
-        return (
-            self._metadata
-            if isinstance(self._metadata, pl.DataFrame)
-            else pl.read_csv(self._metadata)
-        )
+        match self._metadata:
+            case pl.DataFrame():
+                return self._metadata
+            case str() | Path():
+                src = self._metadata
+            case None:
+                src = Path(__file__).parent / 'data/BatchReportMeta.csv'
+            case _:
+                raise TypeError(self._metadata)
+
+        return pl.read_csv(src)
 
     @functools.cached_property
     def raw(self) -> pl.DataFrame:
         """원본 데이터."""
-        kwargs = self.kwargs
+        kwargs = self.kwargs.copy()
+        kwargs['encoding'] = self.encoding
+        kwargs.setdefault('has_header', False)
+        kwargs.setdefault('separator', '\t')
         kwargs.setdefault('infer_schema_length', 10000)
-        data = pl.read_csv(self.source, separator='\t', has_header=False, **kwargs)
+        kwargs.setdefault('glob', False)
+
+        data = pl.read_csv(self.source, **kwargs)
+
+        # 열 이름 지정
         cols = ['file', *self.metadata['variable'].to_list()]
 
         if len(cols) < data.width:
-            cols = [*cols, *(f'unknown{x + 1}' for x in range(data.width - len(cols)))]
+            unknown = (f'unknown{x + 1:02d}' for x in range(data.width - len(cols)))
+            cols = [*cols, *unknown]
 
         data.columns = cols
+
+        # 모든 행이 빈 열 dtype str -> float
         nulls = (
             data
             .count()
