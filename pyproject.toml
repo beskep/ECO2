@@ -19,7 +19,6 @@ eco2 = "eco2.cli:app.meta"
 [dependency-groups]
 dev       = [
   "cx-freeze>=8.3.0",
-  "mypy>=1.15.0",
   "pytest>=8.3.5",
   "pytest-cov>=6.0.0",
   "pytest-sugar>=1.0.0",
@@ -46,26 +45,20 @@ exclude_also = [
 [tool.hatch.build.targets.wheel]
 packages = ["eco2"]
 
-[tool.mypy]
-check_untyped_defs  = true
-warn_unused_ignores = true
-warn_unused_configs = true
-
 [tool.pytest]
 addopts = ["--cov-report=html", "--cov=./", "--doctest-modules", "-v"]
 
 [tool.ruff]
-preview           = true
-respect-gitignore = false
-output-format     = "concise"
+preview       = true
+output-format = "concise"
 
 [tool.ruff.format]
 quote-style           = "single"
 docstring-code-format = true
 
 [tool.ruff.lint]
-select             = ["ALL"]
-ignore             = [
+select = ["ALL"]
+ignore = [
   "assert",                      # flake8-bandit: assert
   "COM",                         # flake8-commas
   "CPY",                         # flake8-copyright
@@ -73,12 +66,6 @@ ignore             = [
   "Q",                           # flake8-quotes
   "undocumented-public-module",  # pydocstyle: undocumented-public-module
 ]
-extend-safe-fixes  = [
-  "EM",                          # flake8-errmsg
-  "PT",                          # flake8-pytest-style
-  "TC",                          # flake8-type-checking
-]
-future-annotations = true
 
 [tool.ruff.lint.extend-per-file-ignores]
 "tests/**" = ["ANN", "D"]
