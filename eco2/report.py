@@ -212,32 +212,25 @@ class UploadReport(BaseReport):
         if raw.columns[:3] != ['고시일', '구분코드', '구분']:
             raise ReportFormatError(self.source)
 
-        if unnamed := raw.select(cs.contains('__UNNAMED__')).columns:
-            raw = raw.rename({unnamed[0]: '값'})
+        if not raw.columns[-1]:
+            raw.columns = [*raw.columns[:-1], 'text']
 
         return raw
 
     @functools.cached_property
     def data(self) -> pl.DataFrame:
         """추출, 가공한 데이터."""
-        m = (
-            pl
-            .col('값')
-            .str.ends_with('%')
-            .replace_strict({True: 0.01, False: 1.0}, return_dtype=pl.Float64)
+        expr = pl.col('text')
+        value = (
+            expr.str
+            .replace_all(',', '')
+            .str.strip_suffix('%')
+            .cast(pl.Float64, strict=False)
         )
-        return (
-            (self.raw)
-            .with_columns(
-                pl
-                .col('값')
-                .str.replace_all(',', '')
-                .str.strip_suffix('%')
-                .cast(pl.Float64, strict=False)
-                .alias('value')
-            )
-            .with_columns((pl.col('value') * m).alias('value'))
+        percent = expr.str.ends_with('%').replace_strict(
+            {True: 0.01, False: 1.0}, return_dtype=pl.Float64
         )
+        return self.raw.with_columns(value.mul(percent).alias('value'))
 
 
 @dc.dataclass(frozen=True)
